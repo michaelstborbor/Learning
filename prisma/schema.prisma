@@ -1,0 +1,564 @@
+// EcoSkills Academy — Prisma schema
+//
+// PHASE 1 NOTE: This is a deliberately minimal starting schema.
+// It exists to prove the database connection and migration workflow work end-to-end.
+// The full entity model (courses, assessments, certificates, payments, etc. — see
+// PHASE0_BLUEPRINT.md, Section 3) will be added incrementally, one module at a time,
+// as each corresponding build stage is implemented. This avoids generating a huge
+// unreviewed schema in one step, consistent with the phase-gated approach.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Global role enum. Mirrors the roles defined in PHASE0_BLUEPRINT.md Section 1.2.
+// Kept as an enum (not a separate table) at this stage for simplicity; will be
+// revisited if/when more granular custom permissions are needed beyond these roles.
+enum UserRole {
+  SUPER_ADMIN
+  PLATFORM_ADMIN
+  INSTRUCTOR
+  CONTENT_REVIEWER
+  ORGANIZATION
+  MENTOR
+  LEARNER
+  PARTNER_CENTRE
+}
+
+// Base identity table. Role-specific profile tables (LearnerProfile,
+// InstructorProfile, OrganizationProfile, etc.) will be added when a module
+// actually needs them.
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  fullName      String
+  role          UserRole  @default(LEARNER)
+  isActive      Boolean   @default(true)
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  coursesTaught      Course[]           @relation("InstructorCourses")
+  enrolments         Enrolment[]
+  lessonProgress     LessonProgress[]
+  quizAttempts       QuizAttempt[]
+  projectSubmissions ProjectSubmission[] @relation("LearnerSubmissions")
+  gradedSubmissions  ProjectSubmission[] @relation("GraderSubmissions")
+  learnerSkills      LearnerSkill[]
+  certificates       Certificate[]
+  revokedCertificates CertificateAuditLog[] @relation("CertificateAuditPerformer")
+  organization       Organization?
+  cohortMemberships  CohortMember[]
+  verificationTokens VerificationToken[]
+  adminAuditLogs     AdminAuditLog[]
+  attendanceRecords  AttendanceRecord[]
+  applications       Application[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------
+// STAGE C — Core Learning Loop
+//
+// Scope note: "Assignment" (a separate gradable-but-lighter-weight entity
+// in the original brief) is deliberately not built yet — only Project
+// (the practical, rubric-graded, competency-proving submission) exists at
+// this stage. This keeps the knowledge-vs-competency distinction (Rule 1/2)
+// central without doubling the surface area. Assignment can be added later
+// without restructuring anything here.
+//
+// Scope note: course category/level are simple strings for now, not
+// separate CourseCategory/CourseLevel tables — those get extracted into
+// real entities if/when an admin-managed taxonomy is actually needed.
+// ---------------------------------------------------------------------
+
+// Draft -> (instructor submits) UnderReview -> (reviewer approves) Approved
+// -> (admin publishes) Published -> (admin) Archived. A reviewer sending a
+// course back writes reviewFeedback and returns it to Draft. This is the
+// real Draft -> Review -> Approved -> Publish workflow from
+// PHASE0_BLUEPRINT.md Section 55 — Stage F3 replaces the simpler
+// Draft->Published-only flow used since Stage C.
+enum CourseStatus {
+  DRAFT
+  UNDER_REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CompetencyStatus {
+  NOT_ASSESSED
+  IN_PROGRESS
+  DEMONSTRATED
+  VERIFIED
+}
+
+enum SubmissionStatus {
+  PENDING
+  GRADED
+}
+
+model Course {
+  id             String       @id @default(cuid())
+  title          String
+  slug           String       @unique
+  description    String
+  category       String
+  level          String
+  estimatedHours Int          @default(1)
+  status         CourseStatus @default(DRAFT)
+  // Set by a reviewer when sending a course back to Draft (see
+  // api/courses/[courseId]/review/route.ts). Cleared on next submission.
+  reviewFeedback String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  instructorId String
+  instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
+
+  modules     Module[]
+  enrolments  Enrolment[]
+  quiz        Quiz?
+  project     Project?
+  certificates Certificate[]
+  cohorts     Cohort[]
+
+  @@map("courses")
+}
+
+model Module {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title    String
+  order    Int
+
+  lessons Lesson[]
+
+  @@map("modules")
+}
+
+model Lesson {
+  id       String @id @default(cuid())
+  moduleId String
+  module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title    String
+  // Plain markdown/text content. Video/file resources arrive once object
+  // storage exists (see ARCHITECTURE.md, File storage section) — no
+  // storage backend has been built yet, so lessons are text-only for now.
+  content  String
+  order    Int
+
+  progress LessonProgress[]
+
+  @@map("lessons")
+}
+
+model Enrolment {
+  id              String   @id @default(cuid())
+  learnerId       String
+  learner         User     @relation(fields: [learnerId], references: [id])
+  courseId        String
+  course          Course   @relation(fields: [courseId], references: [id])
+  progressPercent Int      @default(0)
+  enrolledAt      DateTime @default(now())
+  completedAt     DateTime?
+
+  @@unique([learnerId, courseId])
+  @@map("enrolments")
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  learnerId   String
+  learner     User     @relation(fields: [learnerId], references: [id])
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([learnerId, lessonId])
+  @@map("lesson_progress")
+}
+
+// One knowledge-check quiz per course at this stage (matches the initial
+// course structure example in PHASE0_BLUEPRINT.md — a per-module quiz can
+// be added later if a course needs finer-grained knowledge checks).
+model Quiz {
+  id             String @id @default(cuid())
+  courseId       String @unique
+  course         Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title          String
+  passMarkPercent Int   @default(70)
+
+  questions Question[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model Question {
+  id     String @id @default(cuid())
+  quizId String
+  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  prompt String
+  order  Int
+
+  answers Answer[]
+
+  @@map("questions")
+}
+
+// Single-correct-answer multiple choice at this stage — matches the
+// original brief's MVP assessment types most directly. Multiple-response,
+// true/false-as-a-special-case, and short-answer can be added as
+// additional Question "kind" variants later without breaking this shape.
+model Answer {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  @@map("answers")
+}
+
+model QuizAttempt {
+  id           String   @id @default(cuid())
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id])
+  learnerId    String
+  learner      User     @relation(fields: [learnerId], references: [id])
+  scorePercent Int
+  passed       Boolean
+  attemptedAt  DateTime @default(now())
+
+  @@map("quiz_attempts")
+}
+
+// The practical, human-graded project that actually proves competency —
+// this is the entity that separates EcoSkills Academy from a video library
+// (see Rule 1/2 in PHASE0_BLUEPRINT.md). One project per course at this
+// stage, optionally linked to the single Skill it demonstrates.
+model Project {
+  id           String  @id @default(cuid())
+  courseId     String  @unique
+  course       Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title        String
+  instructions String
+  rubric       String
+  skillId      String?
+  skill        Skill?  @relation(fields: [skillId], references: [id])
+
+  submissions ProjectSubmission[]
+
+  @@map("projects")
+}
+
+model ProjectSubmission {
+  id         String           @id @default(cuid())
+  projectId  String
+  project    Project          @relation(fields: [projectId], references: [id])
+  learnerId  String
+  learner    User             @relation("LearnerSubmissions", fields: [learnerId], references: [id])
+  // A link (e.g. to a Google Doc, Sheet, or hosted file) rather than an
+  // uploaded file — no object storage exists yet (see ARCHITECTURE.md).
+  submissionUrl String
+  notes      String?
+  status     SubmissionStatus @default(PENDING)
+  score      Int?
+  feedback   String?
+  gradedById String?
+  gradedBy   User?            @relation("GraderSubmissions", fields: [gradedById], references: [id])
+  gradedAt   DateTime?
+  submittedAt DateTime        @default(now())
+
+  @@map("project_submissions")
+}
+
+// The Skills Passport. A LearnerSkill row is created/updated when a
+// project submission is graded as passing — never manually asserted by a
+// learner, since the whole point is that it's evidence-backed.
+model Skill {
+  id       String @id @default(cuid())
+  name     String @unique
+  category String
+
+  projects      Project[]
+  learnerSkills LearnerSkill[]
+
+  @@map("skills")
+}
+
+model LearnerSkill {
+  id                 String            @id @default(cuid())
+  learnerId          String
+  learner            User              @relation(fields: [learnerId], references: [id])
+  skillId            String
+  skill              Skill             @relation(fields: [skillId], references: [id])
+  verificationStatus CompetencyStatus  @default(NOT_ASSESSED)
+  evidenceSubmissionId String?
+  updatedAt          DateTime          @updatedAt
+
+  @@unique([learnerId, skillId])
+  @@map("learner_skills")
+}
+
+// ---------------------------------------------------------------------
+// STAGE D — Credentials (rescoped from "Commerce & Credentials": payments
+// are deferred per product decision, so this stage is certification only)
+//
+// Design decision: certificates are issued AUTOMATICALLY by server-side
+// logic the moment a learner meets a course's real criteria (see
+// src/lib/certificates.ts) — never by a human clicking "issue". This keeps
+// certificates evidence-backed the same way LearnerSkill is. Revocation,
+// by contrast, IS a manual, audited admin action (Rule 5) — the one place
+// a human deliberately overrides the system, always logged (Rule 6).
+// ---------------------------------------------------------------------
+
+enum CertificateStatus {
+  ACTIVE
+  REVOKED
+}
+
+model Certificate {
+  id                  String            @id @default(cuid())
+  certificateNumber   String            @unique
+  learnerId           String
+  learner             User              @relation(fields: [learnerId], references: [id])
+  courseId            String
+  course              Course            @relation(fields: [courseId], references: [id])
+  competencyStatement String
+  // Nullable: EcoSkills Academy is the sole issuing body for now (per
+  // product decision). A named partner institution can be added later
+  // without a schema migration — see PHASE0_BLUEPRINT.md Section 9.
+  issuingPartner      String?
+  status              CertificateStatus @default(ACTIVE)
+  issuedAt            DateTime          @default(now())
+
+  auditLog CertificateAuditLog[]
+
+  @@unique([learnerId, courseId])
+  @@map("certificates")
+}
+
+model CertificateAuditLog {
+  id            String      @id @default(cuid())
+  certificateId String
+  certificate   Certificate @relation(fields: [certificateId], references: [id])
+  action        String
+  // Null performer = issued automatically by the system, not a person.
+  performedById String?
+  performedBy   User?       @relation("CertificateAuditPerformer", fields: [performedById], references: [id])
+  notes         String?
+  createdAt     DateTime    @default(now())
+
+  @@map("certificate_audit_log")
+}
+
+// ---------------------------------------------------------------------
+// STAGE E — Organizations & Scale Features
+//
+// Scope note: one Organization per owning User for now (mirrors the
+// Course-has-one-instructor pattern already established) — a real
+// multi-staff OrganizationMember join table is deferred until an
+// organization actually needs more than one person managing it.
+//
+// Scope note: adding an employee to a cohort requires that person to
+// already have an account (looked up by email). There's no notification
+// module yet to send an invite to someone who doesn't — see
+// ARCHITECTURE.md for the honest error path this produces.
+// ---------------------------------------------------------------------
+
+model Organization {
+  id          String   @id @default(cuid())
+  ownerId     String   @unique
+  owner       User     @relation(fields: [ownerId], references: [id])
+  name        String
+  description String
+  website     String?
+  createdAt   DateTime @default(now())
+
+  cohorts       Cohort[]
+  opportunities Opportunity[]
+
+  @@map("organizations")
+}
+
+enum DeliveryMode {
+  ONLINE
+  OFFLINE
+  HYBRID
+}
+
+model Cohort {
+  id             String       @id @default(cuid())
+  courseId       String
+  course         Course       @relation(fields: [courseId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  title          String
+  startDate      DateTime
+  endDate        DateTime
+  location       String?
+  deliveryMode   DeliveryMode @default(ONLINE)
+  createdAt      DateTime     @default(now())
+
+  members     CohortMember[]
+  attendance  AttendanceRecord[]
+  invitations CohortInvitation[]
+
+  @@map("cohorts")
+}
+
+model CohortMember {
+  id        String   @id @default(cuid())
+  cohortId  String
+  cohort    Cohort   @relation(fields: [cohortId], references: [id])
+  learnerId String
+  learner   User     @relation(fields: [learnerId], references: [id])
+  joinedAt  DateTime @default(now())
+
+  @@unique([cohortId, learnerId])
+  @@map("cohort_members")
+}
+
+model AttendanceRecord {
+  id          String   @id @default(cuid())
+  cohortId    String
+  cohort      Cohort   @relation(fields: [cohortId], references: [id])
+  learnerId   String
+  learner     User     @relation(fields: [learnerId], references: [id])
+  sessionDate DateTime
+  present     Boolean
+  recordedAt  DateTime @default(now())
+
+  @@unique([cohortId, learnerId, sessionDate])
+  @@map("attendance_records")
+}
+
+enum OpportunityType {
+  INTERNSHIP
+  JOB
+  APPRENTICESHIP
+  VOLUNTEER
+  PROJECT
+  MENTORSHIP
+}
+
+enum OpportunityStatus {
+  OPEN
+  CLOSED
+}
+
+model Opportunity {
+  id                 String            @id @default(cuid())
+  organizationId     String
+  organization       Organization      @relation(fields: [organizationId], references: [id])
+  title              String
+  type               OpportunityType
+  description        String
+  eligibilityCriteria String
+  location           String?
+  status             OpportunityStatus @default(OPEN)
+  createdAt          DateTime          @default(now())
+
+  applications Application[]
+
+  @@map("opportunities")
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  INTERVIEW
+  SELECTED
+  REJECTED
+}
+
+model Application {
+  id            String            @id @default(cuid())
+  opportunityId String
+  opportunity   Opportunity       @relation(fields: [opportunityId], references: [id])
+  learnerId     String
+  learner       User              @relation(fields: [learnerId], references: [id])
+  coverNote     String?
+  status        ApplicationStatus @default(APPLIED)
+  appliedAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@unique([opportunityId, learnerId])
+  @@map("applications")
+}
+
+// ---------------------------------------------------------------------
+// STAGE F2 — Notifications
+//
+// Tokens are stored HASHED (sha256), never raw — the same discipline as a
+// password. The raw token only ever exists in the email link itself and
+// in memory for the length of one request; a database read alone can
+// never produce a usable token. See src/lib/tokens.ts.
+// ---------------------------------------------------------------------
+
+enum VerificationTokenType {
+  EMAIL_VERIFY
+  PASSWORD_RESET
+}
+
+model VerificationToken {
+  id        String                @id @default(cuid())
+  userId    String
+  user      User                  @relation(fields: [userId], references: [id])
+  tokenHash String                @unique
+  type      VerificationTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime              @default(now())
+
+  @@map("verification_tokens")
+}
+
+// A cohort invite for someone who doesn't have an account yet. Accepting
+// one (by registering via the emailed link) both creates the account AND
+// joins the cohort/enrols in the course in one step — see
+// api/auth/register/route.ts.
+model CohortInvitation {
+  id         String    @id @default(cuid())
+  cohortId   String
+  cohort     Cohort    @relation(fields: [cohortId], references: [id])
+  email      String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@map("cohort_invitations")
+}
+
+// ---------------------------------------------------------------------
+// STAGE F4 — Security/Privacy/Accessibility/Performance audit
+//
+// Found during the audit: Rule 6 ("Every important administrative action
+// should have an audit trail") was only actually implemented for
+// certificates (CertificateAuditLog, Stage D). Admin user-role/activation
+// changes and admin course status changes (publish/archive) had no trail
+// at all. This is the general-purpose log that closes that gap — see
+// SECURITY.md and src/lib/audit-log.ts.
+// ---------------------------------------------------------------------
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  @@map("admin_audit_log")
+}

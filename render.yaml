@@ -11,9 +11,10 @@ services:
   - type: web
     name: ecoskills-academy
     runtime: node
-    plan: free
-    buildCommand: npm install && npx prisma generate && npx prisma migrate deploy && npm run build
+    plan: starter
+    buildCommand: npm install && npx prisma generate && npm run build
     startCommand: npm run start
+    preDeployCommand: npx prisma migrate deploy
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -35,6 +36,6 @@ services:
 
 databases:
   - name: ecoskills-academy-db
-    plan: free
+    plan: starter
     databaseName: ecoskills_academy
     user: ecoskills
