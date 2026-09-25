@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+/* EcoSkills Academy design tokens.
+   Color rationale: teal is brand/navigation, ochre is action/CTA, green is
+   reserved ONLY for verified competency (never "content viewed"), clay-red
+   is reserved ONLY for errors. This separation is deliberate: it reflects
+   the platform's core rule that watching a lesson and demonstrating a skill
+   are different things, and the UI must never let them look the same
+   (see PHASE0_BLUEPRINT.md, Section 1.4). Full rationale in DESIGN.md. */
+:root {
+  --color-brand-50: #eef4f3;
+  --color-brand-100: #d3e5e2;
+  --color-brand-400: #1f6e64;
+  --color-brand-600: #0f4c46;
+  --color-brand-700: #0b3833;
+  --color-brand-800: #082825;
+
+  /* action-500/600 and ink-500 were audited for WCAG 2.2 AA contrast in
+     Stage F4 and found failing: white button text on the original
+     action-500 (#c8860d) measured ~3.06:1, and ink-500 (#71786f) measured
+     ~4.38:1 against the page background — both below the 4.5:1 AA minimum
+     for normal text. Values below are darkened just enough to clear AA
+     (verified ≥4.5:1) while staying in the same ochre/gray family. See
+     SECURITY.md's Accessibility section for the calculations. */
+  --color-action-100: #fbe9cf;
+  --color-action-500: #9c6209;
+  --color-action-600: #7d4e07;
+
+  --color-verified-100: #dcf1e4;
+  --color-verified-500: #2f8f5b;
+  --color-verified-700: #1f6740;
+
+  --color-danger-100: #f7e2dc;
+  --color-danger-500: #b4462f;
+  --color-danger-700: #8a3322;
+
+  --color-ink-100: #edeeec;
+  --color-ink-300: #c3c9c5;
+  --color-ink-500: #64695f;
+  --color-ink-700: #444c47;
+  --color-ink-900: #1c211f;
+
+  --background: #fbfbf9;
+  --foreground: var(--color-ink-900);
+
+  --radius-base: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-brand-50: var(--color-brand-50);
+  --color-brand-100: var(--color-brand-100);
+  --color-brand-400: var(--color-brand-400);
+  --color-brand-600: var(--color-brand-600);
+  --color-brand-700: var(--color-brand-700);
+  --color-brand-800: var(--color-brand-800);
+
+  --color-action-100: var(--color-action-100);
+  --color-action-500: var(--color-action-500);
+  --color-action-600: var(--color-action-600);
+
+  --color-verified-100: var(--color-verified-100);
+  --color-verified-500: var(--color-verified-500);
+  --color-verified-700: var(--color-verified-700);
+
+  --color-danger-100: var(--color-danger-100);
+  --color-danger-500: var(--color-danger-500);
+  --color-danger-700: var(--color-danger-700);
+
+  --color-ink-100: var(--color-ink-100);
+  --color-ink-300: var(--color-ink-300);
+  --color-ink-500: var(--color-ink-500);
+  --color-ink-700: var(--color-ink-700);
+  --color-ink-900: var(--color-ink-900);
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
