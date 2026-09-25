@@ -1,0 +1,41 @@
+# Render Blueprint — one-click deployment.
+# In the Render dashboard, use "Blueprints" (dashboard.render.com/blueprints),
+# not the main "New +" button, and point it at this repository.
+#
+# This creates both the web service and the database in one step, wires
+# DATABASE_URL between them automatically, and generates AUTH_SECRET for
+# you. See DEPLOYMENT.md for what happens after — the handful of values
+# you still need to fill in by hand, and the full launch checklist.
+
+services:
+  - type: web
+    name: ecoskills-academy
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm run start
+    preDeployCommand: npx prisma migrate deploy
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ecoskills-academy-db
+          property: connectionString
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      # These three are deployment-specific — Render will prompt you for
+      # them when you create the Blueprint, rather than committing them to
+      # the repo. See DEPLOYMENT.md section 2 for what each one is.
+      - key: APP_BASE_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM_ADDRESS
+        sync: false
+
+databases:
+  - name: ecoskills-academy-db
+    plan: starter
+    databaseName: ecoskills_academy
+    user: ecoskills
