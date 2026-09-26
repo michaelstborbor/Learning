@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES, PUBLISH_ROLES, REVIEWER_ROLES } from "@/lib/roles";
+import { MobileNavToggle } from "./MobileNavToggle";
 
 // Server component: reads the session cookie server-side, so the nav never
 // flashes a logged-out state or trusts anything the client claims.
@@ -13,6 +14,59 @@ export async function Nav() {
   const isContentReviewerOnly = session?.role === "CONTENT_REVIEWER";
   const isLearnerNav = session && !isInstructor && !isOrganization && !isContentReviewerOnly;
 
+  const navLinks = (
+    <>
+      <Link href="/courses" className="hover:text-ink-900">
+        Courses
+      </Link>
+      <Link href="/opportunities" className="hover:text-ink-900">
+        Opportunities
+      </Link>
+      {isLearnerNav && (
+        <>
+          <Link href="/dashboard" className="hover:text-ink-900">
+            Dashboard
+          </Link>
+          <Link href="/skills" className="hover:text-ink-900">
+            Skills Passport
+          </Link>
+          <Link href="/certificates" className="hover:text-ink-900">
+            Certificates
+          </Link>
+          <Link href="/applications" className="hover:text-ink-900">
+            My applications
+          </Link>
+        </>
+      )}
+      {isInstructor && (
+        <Link href="/instructor/courses" className="hover:text-ink-900">
+          My courses
+        </Link>
+      )}
+      {isReviewer && (
+        <Link href="/review" className="hover:text-ink-900">
+          Review queue
+        </Link>
+      )}
+      {isOrganization && (
+        <Link href="/organization" className="hover:text-ink-900">
+          Organization
+        </Link>
+      )}
+      {isAdmin && (
+        <Link href="/admin" className="hover:text-ink-900">
+          Admin
+        </Link>
+      )}
+      <Link href="/verify" className="hover:text-ink-900">
+        Verify a certificate
+      </Link>
+      <Link href="/about" className="hover:text-ink-900">
+        About
+      </Link>
+    </>
+  );
+
   return (
     <header className="border-b border-ink-100">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
@@ -23,54 +77,7 @@ export async function Nav() {
           EcoSkills Academy
         </Link>
         <nav className="hidden items-center gap-6 text-sm text-ink-700 sm:flex">
-          <Link href="/courses" className="hover:text-ink-900">
-            Courses
-          </Link>
-          <Link href="/opportunities" className="hover:text-ink-900">
-            Opportunities
-          </Link>
-          {isLearnerNav && (
-            <>
-              <Link href="/dashboard" className="hover:text-ink-900">
-                Dashboard
-              </Link>
-              <Link href="/skills" className="hover:text-ink-900">
-                Skills Passport
-              </Link>
-              <Link href="/certificates" className="hover:text-ink-900">
-                Certificates
-              </Link>
-              <Link href="/applications" className="hover:text-ink-900">
-                My applications
-              </Link>
-            </>
-          )}
-          {isInstructor && (
-            <Link href="/instructor/courses" className="hover:text-ink-900">
-              My courses
-            </Link>
-          )}
-          {isReviewer && (
-            <Link href="/review" className="hover:text-ink-900">
-              Review queue
-            </Link>
-          )}
-          {isOrganization && (
-            <Link href="/organization" className="hover:text-ink-900">
-              Organization
-            </Link>
-          )}
-          {isAdmin && (
-            <Link href="/admin" className="hover:text-ink-900">
-              Admin
-            </Link>
-          )}
-          <Link href="/verify" className="hover:text-ink-900">
-            Verify a certificate
-          </Link>
-          <Link href="/about" className="hover:text-ink-900">
-            About
-          </Link>
+          {navLinks}
         </nav>
         <div className="flex items-center gap-3">
           {session ? (
@@ -96,6 +103,7 @@ export async function Nav() {
               </Link>
             </>
           )}
+          <MobileNavToggle>{navLinks}</MobileNavToggle>
         </div>
       </div>
     </header>
