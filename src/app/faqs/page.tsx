@@ -2,7 +2,7 @@ import { Nav } from "@/components/ui/Nav";
 
 const FAQS = [
   {
-    q: "Is EcoSkills Academy free?",
+    q: "Is EliteSkills Academy free?",
     a: "Yes. The platform launches free and open-access, with no payment required to enrol or learn.",
   },
   {
@@ -11,7 +11,7 @@ const FAQS = [
   },
   {
     q: "Is this the same as a university degree?",
-    a: "No. EcoSkills Academy teaches practical, workplace-ready skills. It's not a degree and we don't present it as equivalent to one.",
+    a: "No. EliteSkills Academy teaches practical, workplace-ready skills. It's not a degree and we don't present it as equivalent to one.",
   },
   {
     q: "What if I have a slow internet connection?",
@@ -19,7 +19,7 @@ const FAQS = [
   },
   {
     q: "Is the platform open source?",
-    a: "Yes, EcoSkills Academy is released under the MIT License.",
+    a: "Yes, EliteSkills Academy is released under the MIT License.",
   },
 ];
 

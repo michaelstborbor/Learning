@@ -4,7 +4,7 @@ import { VerifyForm } from "@/components/certificates/VerifyForm";
 
 export const metadata: Metadata = {
   title: "Verify a certificate",
-  description: "Check whether an EcoSkills Academy certificate is genuine — no account required.",
+  description: "Check whether an EliteSkills Academy certificate is genuine — no account required.",
 };
 
 export default async function VerifyPage({
@@ -22,7 +22,7 @@ export default async function VerifyPage({
           Verify a certificate
         </h1>
         <p className="mt-2 text-ink-500">
-          Anyone can check whether an EcoSkills Academy certificate is
+          Anyone can check whether an EliteSkills Academy certificate is
           genuine — no account required.
         </p>
 

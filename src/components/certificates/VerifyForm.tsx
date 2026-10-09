@@ -97,7 +97,7 @@ export function VerifyForm({ initialCertificateNumber }: { initialCertificateNum
             <p>Issued: {new Date(result.issuedAt).toLocaleDateString()}</p>
             <p>
               Issuing body:{" "}
-              {result.issuingPartner ? result.issuingPartner : "EcoSkills Academy"}
+              {result.issuingPartner ? result.issuingPartner : "EliteSkills Academy"}
             </p>
           </div>
         </Card>

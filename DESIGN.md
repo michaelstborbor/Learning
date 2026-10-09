@@ -2,7 +2,7 @@
 
 ## Direction
 
-EcoSkills Academy should feel grounded in Sierra Leone's real landscape and in
+EliteSkills Academy should feel grounded in Sierra Leone's real landscape and in
 practical, hands-on work — not a generic "African-themed" template, and not a
 generic SaaS-card kit. It should also read as a serious platform, not a
 university (the product brief is explicit that this is not a degree

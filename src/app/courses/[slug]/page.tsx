@@ -128,7 +128,7 @@ export default async function CourseDetailPage({
               description: course.description,
               provider: {
                 "@type": "Organization",
-                name: "EcoSkills Academy",
+                name: "EliteSkills Academy",
               },
               educationalLevel: course.level,
               timeRequired: `PT${course.estimatedHours}H`,

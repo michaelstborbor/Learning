@@ -30,7 +30,7 @@ flag, `emailVerified` (nullable timestamp, added in F2), timestamps.
 **Credentials (Stage D, rescoped from "Commerce & Credentials" — payments are
 deferred):**
 - `Certificate` — id, unique `certificateNumber`, learner, course, competency
-  statement, nullable `issuingPartner` (unset for now — EcoSkills Academy is the
+  statement, nullable `issuingPartner` (unset for now — EliteSkills Academy is the
   sole issuer), status (`ACTIVE`/`REVOKED`), issued timestamp. Created only by
   `maybeIssueCertificate()` in `src/lib/certificates.ts` — see `ARCHITECTURE.md`'s
   Credentials section for exactly when that fires.

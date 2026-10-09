@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 
 // Deliberately public (no getSession check) — certificate verification has
-// to work for anyone, including an employer with no EcoSkills Academy
+// to work for anyone, including an employer with no EliteSkills Academy
 // account. Deliberately returns minimal data: enough to confirm
 // authenticity (name, course, date, status), nothing else about the
 // learner. A revoked certificate is reported as revoked, not hidden as

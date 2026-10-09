@@ -14,7 +14,7 @@ export default function ContactPage() {
           Contact us
         </h1>
         <p className="mt-4 text-ink-700">
-          Have a question, or want to partner with EcoSkills Academy? Reach
+          Have a question, or want to partner with EliteSkills Academy? Reach
           out and we&apos;ll get back to you.
         </p>
         <a

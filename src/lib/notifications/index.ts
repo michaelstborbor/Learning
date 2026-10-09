@@ -23,7 +23,7 @@ export function buildVerificationEmail(fullName: string, token: string): EmailMe
   const link = `${baseUrl()}/api/auth/verify-email?token=${token}`;
   return {
     to: "",
-    subject: "Verify your EcoSkills Academy email",
+    subject: "Verify your EliteSkills Academy email",
     html: `<p>Hi ${fullName},</p><p>Confirm your email address to finish setting up your account:</p><p><a href="${link}">${link}</a></p><p>This link expires in 24 hours.</p>`,
     text: `Hi ${fullName},\n\nConfirm your email address:\n${link}\n\nThis link expires in 24 hours.`,
   };
@@ -33,7 +33,7 @@ export function buildPasswordResetEmail(fullName: string, token: string): EmailM
   const link = `${baseUrl()}/reset-password?token=${token}`;
   return {
     to: "",
-    subject: "Reset your EcoSkills Academy password",
+    subject: "Reset your EliteSkills Academy password",
     html: `<p>Hi ${fullName},</p><p>Someone requested a password reset for this account. If that was you, set a new password here:</p><p><a href="${link}">${link}</a></p><p>This link expires in 1 hour. If you didn't request this, you can ignore this email.</p>`,
     text: `Hi ${fullName},\n\nReset your password:\n${link}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
   };
@@ -48,8 +48,8 @@ export function buildCohortInviteEmail(
   const link = `${baseUrl()}/register?invite=${token}`;
   return {
     to: "",
-    subject: `You're invited to join ${cohortTitle} on EcoSkills Academy`,
-    html: `<p>${organizationName} has invited you to join the "${cohortTitle}" cohort for ${courseTitle} on EcoSkills Academy.</p><p>Create your free account to get started:</p><p><a href="${link}">${link}</a></p><p>This invite expires in 7 days.</p>`,
-    text: `${organizationName} has invited you to join "${cohortTitle}" (${courseTitle}) on EcoSkills Academy.\n\nCreate your account:\n${link}\n\nThis invite expires in 7 days.`,
+    subject: `You're invited to join ${cohortTitle} on EliteSkills Academy`,
+    html: `<p>${organizationName} has invited you to join the "${cohortTitle}" cohort for ${courseTitle} on EliteSkills Academy.</p><p>Create your free account to get started:</p><p><a href="${link}">${link}</a></p><p>This invite expires in 7 days.</p>`,
+    text: `${organizationName} has invited you to join "${cohortTitle}" (${courseTitle}) on EliteSkills Academy.\n\nCreate your account:\n${link}\n\nThis invite expires in 7 days.`,
   };
 }

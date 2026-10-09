@@ -1,4 +1,4 @@
-# EcoSkills Academy — Phase 0: Product & Technical Blueprint
+# EliteSkills Academy — Phase 0: Product & Technical Blueprint
 
 **Status:** Draft for your review and approval
 **Scope of this document:** Product Requirements Document (PRD), System Architecture, Database Entity Model, Technology Recommendation, MVP Definition, Development Roadmap, Risks, and Assumptions.
@@ -23,7 +23,7 @@ Everything else is the supporting detail for those decisions.
 
 ### 1.1 Product objective
 
-EcoSkills Academy is a practical, competency-based digital skills and career development platform. The core loop is:
+EliteSkills Academy is a practical, competency-based digital skills and career development platform. The core loop is:
 
 **Learn → Practice → Demonstrate → Certify → Connect**
 
@@ -84,7 +84,7 @@ AI tutor/recommendations, advanced recruitment/talent search, WhatsApp/SMS learn
 
 ### 1.8 Assumptions I'm making (flagged, not hidden)
 
-- "EcoSkills Academy" is confirmed as the working name for this document; branding/logo work happens in Phase 2 (UI/UX system), not Phase 0.
+- "EliteSkills Academy" is confirmed as the working name for this document; branding/logo work happens in Phase 2 (UI/UX system), not Phase 0.
 - Initial currency for pricing display is the Sierra Leonean Leone (SLE, the redenominated Leone since 2022), formatted appropriately; actual payment provider integration is a decision item (Section 11).
 - You are the Super Administrator at launch; no separate "platform owner" entity beyond you is assumed.
 - Content (courses, quizzes) will initially be authored by you/your instructors — I am not assuming a large existing content library.
@@ -296,7 +296,7 @@ Each stage will follow your Section 48 workflow exactly: inspect → explain →
 ## 9. Decisions Needed From You — RESOLVED (2026-09-14)
 
 1. **Payment providers:** No payment integration at launch. The platform starts **free/open-access**, and is being built as an **open-source learning platform**. Payment provider abstraction (Section 2.7) is retained in the architecture so a provider can be plugged in later without a rewrite, but Stage D (Commerce & Credentials) is rescoped to **Credentials only** for now — certificates without a paywall. Payments move to a later stage, triggered when Michael decides to introduce them.
-2. **Certificate issuing body:** "EcoSkills Academy" only, for now. The `Certificate` entity will include an optional `issuingPartner` reference field (nullable at launch) so a real partner institution can be added later without a schema migration.
+2. **Certificate issuing body:** "EliteSkills Academy" only, for now. The `Certificate` entity will include an optional `issuingPartner` reference field (nullable at launch) so a real partner institution can be added later without a schema migration.
 3. **Relationship to IDTS:** Fully separate. No shared codebase, hosting account, branding, or database. Treated as two independent projects going forward.
 4. **Hosting budget:** Not yet set. Priority is a working, well-tested system first; budget/hosting-tier conversation happens once the platform is functionally proven. Section 6.4 cost estimate remains directional only until then.
 

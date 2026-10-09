@@ -76,7 +76,7 @@ export function LoginForm() {
       </p>
 
       <p className="mt-4 text-sm text-ink-500">
-        New to EcoSkills Academy?{" "}
+        New to EliteSkills Academy?{" "}
         <Link href="/register" className="font-medium text-brand-600 hover:underline">
           Create an account
         </Link>

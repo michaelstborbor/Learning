@@ -26,10 +26,10 @@ export default function TermsPage() {
         <div className="mt-8 flex flex-col gap-6 text-ink-700">
           <section>
             <h2 className="font-display text-lg font-semibold text-ink-900">
-              1. What EcoSkills Academy is
+              1. What EliteSkills Academy is
             </h2>
             <p className="mt-2">
-              EcoSkills Academy is a free, open-access platform for practical
+              EliteSkills Academy is a free, open-access platform for practical
               skills learning. It is not a university, does not confer
               degrees, and does not guarantee employment outcomes.
             </p>
@@ -48,7 +48,7 @@ export default function TermsPage() {
               3. Certificates
             </h2>
             <p className="mt-2">
-              Certificates are issued by EcoSkills Academy based on
+              Certificates are issued by EliteSkills Academy based on
               completion and demonstrated competency criteria for each
               course. They reflect skills demonstrated on this platform and
               are not a government or institutional accreditation unless

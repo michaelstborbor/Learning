@@ -1,4 +1,4 @@
-// EcoSkills Academy — Prisma schema
+// EliteSkills Academy — Prisma schema
 //
 // PHASE 1 NOTE: This is a deliberately minimal starting schema.
 // It exists to prove the database connection and migration workflow work end-to-end.
@@ -242,7 +242,7 @@ model QuizAttempt {
 }
 
 // The practical, human-graded project that actually proves competency —
-// this is the entity that separates EcoSkills Academy from a video library
+// this is the entity that separates EliteSkills Academy from a video library
 // (see Rule 1/2 in PHASE0_BLUEPRINT.md). One project per course at this
 // stage, optionally linked to the single Skill it demonstrates.
 model Project {
@@ -334,7 +334,7 @@ model Certificate {
   courseId            String
   course              Course            @relation(fields: [courseId], references: [id])
   competencyStatement String
-  // Nullable: EcoSkills Academy is the sole issuing body for now (per
+  // Nullable: EliteSkills Academy is the sole issuing body for now (per
   // product decision). A named partner institution can be added later
   // without a schema migration — see PHASE0_BLUEPRINT.md Section 9.
   issuingPartner      String?

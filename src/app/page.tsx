@@ -12,7 +12,7 @@ export default function Home() {
             Learn practical skills. Prove what you can do.
           </h1>
           <p className="max-w-xl text-lg text-ink-500">
-            EcoSkills Academy is a free, open, mobile-first platform for
+            EliteSkills Academy is a free, open, mobile-first platform for
             building real workplace skills — starting in Sierra Leone.
           </p>
           <div>

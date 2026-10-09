@@ -1,6 +1,6 @@
 # Administrator Guide
 
-Plain-language guide for running EcoSkills Academy day-to-day. No coding
+Plain-language guide for running EliteSkills Academy day-to-day. No coding
 knowledge needed for anything in this document.
 
 ## Getting your first admin account

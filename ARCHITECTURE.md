@@ -151,13 +151,13 @@ always writes a `CertificateAuditLog` row — this is the Rule 5/6 enforcement p
 A revoked certificate is never silently re-issued by the automatic path re-firing.
 
 **Verification is genuinely public.** `api/verify/[certificateNumber]` has no
-session check by design — an employer with no EcoSkills Academy account has to be
+session check by design — an employer with no EliteSkills Academy account has to be
 able to check a certificate. It returns the true status even for a revoked
 certificate (name, course, status: Revoked) rather than pretending it doesn't
 exist, because a real verifier deserves an honest answer, not silence.
 
 **Issuing body:** `Certificate.issuingPartner` is nullable and unset for now —
-every certificate reads "EcoSkills Academy" as the sole issuer, per product
+every certificate reads "EliteSkills Academy" as the sole issuer, per product
 decision. A named partner institution can be added later without a migration.
 
 ## Organizations & Scale (Stage E)

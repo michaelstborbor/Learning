@@ -1,6 +1,6 @@
 # API Reference
 
-Internal REST API used by EcoSkills Academy's own frontend — not currently
+Internal REST API used by EliteSkills Academy's own frontend — not currently
 published as a public/third-party API. Documented here for maintainability
 and so a future developer (or AI coding agent) doesn't have to reverse-engineer
 the request shapes from route source. All routes are under `/api/`.

@@ -1,4 +1,4 @@
-# EcoSkills Academy
+# EliteSkills Academy
 
 A free, open-source, mobile-first, low-bandwidth digital skills and career development
 platform, launching first in Sierra Leone with an architecture designed to support
@@ -47,7 +47,7 @@ production setup, and `TESTING.md` for how to run the test suite and load demo d
 
 ## License
 
-MIT — see `LICENSE`. EcoSkills Academy is open source. Anyone may use, modify, and
+MIT — see `LICENSE`. EliteSkills Academy is open source. Anyone may use, modify, and
 redistribute this software, including commercially, provided the copyright notice
 is retained.
 

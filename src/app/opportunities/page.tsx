@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 
 export const metadata: Metadata = {
   title: "Opportunities",
-  description: "Internships, jobs, and mentorships posted by organizations on EcoSkills Academy.",
+  description: "Internships, jobs, and mentorships posted by organizations on EliteSkills Academy.",
 };
 
 // Opportunities change after deploy — never frozen as a static build-time
@@ -54,7 +54,7 @@ export default async function OpportunitiesPage({
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
         <h1 className="font-display text-2xl font-bold text-ink-900">Opportunities</h1>
         <p className="mt-1 text-ink-500">
-          Internships, jobs, and mentorships posted by organizations on EcoSkills Academy.
+          Internships, jobs, and mentorships posted by organizations on EliteSkills Academy.
         </p>
 
         <form method="GET" className="mt-6 flex flex-wrap gap-3">

@@ -1,6 +1,6 @@
 # User Guide
 
-How to use EcoSkills Academy, by role. If you manage the platform itself,
+How to use EliteSkills Academy, by role. If you manage the platform itself,
 see `ADMIN_GUIDE.md` instead.
 
 ## For learners
@@ -21,7 +21,7 @@ checks whether you understood the material. Its practical project is where
 you actually *do* the work and get graded by a real person. Completing
 lessons and passing the quiz alone is never enough to earn a certificate if
 the course has a project — you have to actually submit and pass that too.
-This is intentional: EcoSkills Academy certifies what you can do, not just
+This is intentional: EliteSkills Academy certifies what you can do, not just
 what you watched.
 
 **Submitting a project.** You'll submit a link (to a document, spreadsheet,

@@ -21,7 +21,7 @@ async function hash(password: string) {
 }
 
 async function main() {
-  console.log("Seeding EcoSkills Academy demo data...");
+  console.log("Seeding EliteSkills Academy demo data...");
 
   // --- Users -------------------------------------------------------
   const passwordHash = await hash("DemoPass123!");

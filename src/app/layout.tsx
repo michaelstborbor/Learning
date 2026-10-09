@@ -14,13 +14,13 @@ const APP_URL = process.env.APP_BASE_URL ?? "http://localhost:3000";
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),
   title: {
-    default: "EcoSkills Academy",
-    template: "%s | EcoSkills Academy",
+    default: "EliteSkills Academy",
+    template: "%s | EliteSkills Academy",
   },
   description:
     "Learn practical skills. Demonstrate what you can do. Connect to opportunities.",
   openGraph: {
-    siteName: "EcoSkills Academy",
+    siteName: "EliteSkills Academy",
     type: "website",
     locale: "en_US",
   },
