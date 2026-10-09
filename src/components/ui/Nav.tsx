@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES, PUBLISH_ROLES, REVIEWER_ROLES } from "@/lib/roles";
@@ -16,74 +17,87 @@ export async function Nav() {
 
   const navLinks = (
     <>
-      <Link href="/courses" className="hover:text-ink-900">
+      <Link href="/courses" className="hover:text-brand-600">
         Courses
       </Link>
-      <Link href="/opportunities" className="hover:text-ink-900">
+      <Link href="/opportunities" className="hover:text-brand-600">
         Opportunities
       </Link>
       {isLearnerNav && (
         <>
-          <Link href="/dashboard" className="hover:text-ink-900">
+          <Link href="/dashboard" className="hover:text-brand-600">
             Dashboard
           </Link>
-          <Link href="/skills" className="hover:text-ink-900">
+          <Link href="/skills" className="hover:text-brand-600">
             Skills Passport
           </Link>
-          <Link href="/certificates" className="hover:text-ink-900">
+          <Link href="/certificates" className="hover:text-brand-600">
             Certificates
           </Link>
-          <Link href="/applications" className="hover:text-ink-900">
+          <Link href="/applications" className="hover:text-brand-600">
             My applications
           </Link>
         </>
       )}
       {isInstructor && (
-        <Link href="/instructor/courses" className="hover:text-ink-900">
+        <Link href="/instructor/courses" className="hover:text-brand-600">
           My courses
         </Link>
       )}
       {isReviewer && (
-        <Link href="/review" className="hover:text-ink-900">
+        <Link href="/review" className="hover:text-brand-600">
           Review queue
         </Link>
       )}
       {isOrganization && (
-        <Link href="/organization" className="hover:text-ink-900">
+        <Link href="/organization" className="hover:text-brand-600">
           Organization
         </Link>
       )}
       {isAdmin && (
-        <Link href="/admin" className="hover:text-ink-900">
+        <Link href="/admin" className="hover:text-brand-600">
           Admin
         </Link>
       )}
-      <Link href="/verify" className="hover:text-ink-900">
+      <Link href="/verify" className="hover:text-brand-600">
         Verify a certificate
       </Link>
-      <Link href="/about" className="hover:text-ink-900">
+      <Link href="/about" className="hover:text-brand-600">
         About
       </Link>
     </>
   );
 
   return (
-    <header className="border-b border-ink-100">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-        <Link
-          href="/"
-          className="font-display text-lg font-bold text-brand-600"
-        >
-          EcoSkills Academy
+    <header className="border-b border-brand-100 bg-white">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+        <Link href="/" className="flex items-center gap-2.5">
+          {/* Decorative: the visible name next to it already names the link. */}
+          <Image
+            src="/logo.png"
+            alt=""
+            width={40}
+            height={40}
+            priority
+            className="h-10 w-10 shrink-0"
+          />
+          <span className="font-display text-base font-bold leading-tight text-brand-700 sm:text-lg">
+            EliteSkills
+            <span className="hidden min-[420px]:inline"> Academy</span>
+          </span>
         </Link>
-        <nav className="hidden items-center gap-6 text-sm text-ink-700 sm:flex">
+
+        {/* Full menu from large screens up; tablets and phones get the ☰ menu,
+            because 6-8 links do not fit side by side below ~1024px. */}
+        <nav className="hidden items-center gap-6 text-sm text-ink-700 lg:flex">
           {navLinks}
         </nav>
-        <div className="flex items-center gap-3">
+
+        <div className="flex items-center gap-2 sm:gap-3">
           {session ? (
             <Link
               href="/account"
-              className="rounded-md bg-action-500 px-4 py-2 text-sm font-medium text-white hover:bg-action-600"
+              className="rounded-md bg-action-500 px-3 py-2 text-sm font-medium text-white hover:bg-action-600 sm:px-4"
             >
               My account
             </Link>
@@ -91,13 +105,13 @@ export async function Nav() {
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-ink-700 hover:text-ink-900"
+                className="text-sm font-medium text-ink-700 hover:text-brand-600"
               >
                 Log in
               </Link>
               <Link
                 href="/register"
-                className="rounded-md bg-action-500 px-4 py-2 text-sm font-medium text-white hover:bg-action-600"
+                className="rounded-md bg-action-500 px-3 py-2 text-sm font-medium text-white hover:bg-action-600 sm:px-4"
               >
                 Get started
               </Link>
