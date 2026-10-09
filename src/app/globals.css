@@ -1,41 +1,47 @@
 @import "tailwindcss";
 
-/* EliteSkills Academy design tokens.
+/* EliteSkills Academy design tokens: "Modern EdTech" palette.
 
-   Palette is taken from the Elite Network Limited logo: deep blue (#14539f)
-   is the brand colour, the bright sky blue (#2f9be6) is a decorative
-   accent only. Token NAMES are unchanged from the earlier teal version
-   (brand / action / verified / danger / ink), so no component needs editing.
+   60%  Ink Dark   #0F172A  text and structural borders   -> ink-900
+   30%  White / Soft Mint #F0FDFA  alternating surfaces     -> white, brand-50
+   10%  Teal       #0D9488  accent                          -> brand-500
+        Orange     #EA580C  highlight                       -> highlight-500
 
-   Rules kept from DESIGN.md:
-   - action (ochre) = calls to action only. It also happens to be the
-     complement of the new blue, so buttons stand out clearly.
-   - verified (green) = ONLY demonstrated competency.
-   - danger (red) = ONLY errors and destructive actions.
-   - action-500/600 and the verified/danger families are byte-for-byte the
-     same as the accessibility-audited originals.
+   Token NAMES are unchanged (brand / action / verified / danger / ink), so
+   existing components keep working. Mapping:
+     brand     = teal scale. brand-500 is your exact #0D9488.
+     action    = orange scale (calls to action, buttons with white text).
+     highlight = your exact #EA580C, for progress, icons, glows, big shapes.
+     ink       = slate scale. ink-900 is your exact #0F172A.
 
-   Contrast (WCAG 2.2 AA needs 4.5:1 for normal text), checked on the
-   #f8fbfe page background:
-     brand-600 text 7.3:1 | white on brand-600 7.6:1 | brand-500 text 5.1:1
-     ink-500 5.9:1 | ink-700 10.1:1 | ink-900 17.1:1
-   brand-300/400 are below 4.5:1 on purpose: decorative or large shapes
-   only, never body text. */
+   ACCESSIBILITY (WCAG 2.2 AA needs 4.5:1 for normal text, 3:1 for shapes):
+   your exact teal (#0D9488) is 3.7:1 on white and white-on-#EA580C is 3.6:1,
+   so those two exact values are only used for shapes, icons, borders and
+   large decoration. Anything that carries TEXT uses the deeper shade of the
+   same hue:
+     brand-600 #0F766E  text/links/buttons  5.5:1 on white, 5.3:1 on mint
+     action-500 #C2410C white button text   5.2:1
+   verified-* and danger-* are unchanged from the accessibility audit.
+   verified (green) is still reserved ONLY for demonstrated competency. */
 :root {
-  --color-brand-50: #eef7fd;
-  --color-brand-100: #d9ecfa;
-  --color-brand-200: #b0d8f3;
-  --color-brand-300: #78bbea;
-  --color-brand-400: #2f9be6;
-  --color-brand-500: #1a6cc0;
-  --color-brand-600: #14539f;
-  --color-brand-700: #0f4182;
-  --color-brand-800: #0b3166;
-  --color-brand-900: #07224a;
+  --color-brand-50: #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #0d9488;
+  --color-brand-600: #0f766e;
+  --color-brand-700: #115e59;
+  --color-brand-800: #134e4a;
+  --color-brand-900: #0b3b38;
 
-  --color-action-100: #fbe9cf;
-  --color-action-500: #9c6209;
-  --color-action-600: #7d4e07;
+  --color-action-100: #ffedd5;
+  --color-action-500: #c2410c;
+  --color-action-600: #9a3412;
+
+  --color-highlight-100: #ffedd5;
+  --color-highlight-500: #ea580c;
+  --color-highlight-700: #c2410c;
 
   --color-verified-100: #dcf1e4;
   --color-verified-500: #2f8f5b;
@@ -45,20 +51,21 @@
   --color-danger-500: #b4462f;
   --color-danger-700: #8a3322;
 
-  /* Cool slate neutrals so greys sit comfortably next to the blue. */
-  --color-ink-50: #f6f8fb;
-  --color-ink-100: #edf1f6;
-  --color-ink-200: #dce3ec;
-  --color-ink-300: #c2ccd9;
-  --color-ink-400: #8b99ab;
-  --color-ink-500: #556377;
-  --color-ink-600: #455264;
-  --color-ink-700: #344054;
-  --color-ink-800: #1d2939;
-  --color-ink-900: #101828;
-  --color-ink-950: #0a0f1a;
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #e8edf3;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
 
-  --background: #f8fbfe;
+  /* Soft mint page canvas: white cards, header and panels sit on it, which
+     gives the white / mint alternation with no component changes. */
+  --background: #f0fdfa;
   --foreground: var(--color-ink-900);
 
   --radius-base: 0.5rem;
@@ -82,6 +89,10 @@
   --color-action-100: var(--color-action-100);
   --color-action-500: var(--color-action-500);
   --color-action-600: var(--color-action-600);
+
+  --color-highlight-100: var(--color-highlight-100);
+  --color-highlight-500: var(--color-highlight-500);
+  --color-highlight-700: var(--color-highlight-700);
 
   --color-verified-100: var(--color-verified-100);
   --color-verified-500: var(--color-verified-500);
@@ -108,8 +119,7 @@
   --font-display: "Space Grotesk", system-ui, sans-serif;
 }
 
-/* Slightly larger small text. The app uses text-xs / text-sm for most UI
-   chrome, and 12px / 14px is hard to read on a phone in daylight. */
+/* Slightly larger small text for phone readability. */
 @theme {
   --text-xs: 0.8125rem;
   --text-xs--line-height: 1.25rem;
@@ -132,14 +142,14 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* Default heading look. Any component that sets its own size or colour
-     with a Tailwind class still wins over these. */
+  /* Headings use Ink Dark (the 60% colour). Components that set their own
+     size or colour with a Tailwind class still win over these defaults. */
   h1,
   h2,
   h3,
   h4 {
     font-family: var(--font-display);
-    color: var(--color-brand-800);
+    color: var(--color-ink-900);
     line-height: 1.2;
     letter-spacing: -0.01em;
     text-wrap: balance;
@@ -173,15 +183,130 @@
     text-underline-offset: 3px;
   }
 
-  /* One consistent, clearly visible keyboard focus ring. */
   :focus-visible {
-    outline: 2px solid var(--color-brand-500);
+    outline: 2px solid var(--color-brand-600);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--color-brand-100);
-    color: var(--color-brand-900);
+    background: var(--color-brand-200);
+    color: var(--color-ink-900);
+  }
+}
+
+/* ------------------------------------------------------------------
+   MOUSE EFFECTS (driven by MouseEffects.tsx)
+
+   Only active for a real mouse (hover + fine pointer) and never when the
+   visitor has "reduce motion" switched on: the script does not even start
+   in those cases, so phones and low-power devices pay nothing.
+   Written outside Tailwind's layers on purpose, so these rules win over
+   utility classes such as border colours.
+   ------------------------------------------------------------------ */
+
+/* Lets the card glow fade in and out smoothly. */
+@property --fx-a {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* 1. Cards: soft teal spotlight that follows the cursor, plus a small lift. */
+  [data-fx="card"] {
+    background-image: radial-gradient(
+      260px circle at var(--mx, 50%) var(--my, 50%),
+      rgb(13 148 136 / calc(var(--fx-a) * 0.11)),
+      transparent 70%
+    );
+    transition:
+      --fx-a 0.3s ease,
+      translate 0.25s ease,
+      border-color 0.25s ease;
+  }
+
+  [data-fx="card"]:hover {
+    --fx-a: 1;
+    translate: 0 -2px;
+    border-color: var(--color-brand-300);
+  }
+
+  /* 2. Main buttons are gently pulled toward the cursor and press down. */
+  [data-fx="magnet"] {
+    transition:
+      translate 0.18s ease-out,
+      scale 0.12s ease-out,
+      background-color 0.15s ease;
+  }
+
+  [data-fx="magnet"]:active {
+    scale: 0.97;
+  }
+
+  /* 3. Ambient glow that trails the cursor (teal with a hint of orange). */
+  .fx-glow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 560px;
+    height: 560px;
+    margin: -280px 0 0 -280px;
+    border-radius: 9999px;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    background: radial-gradient(
+      circle,
+      rgb(13 148 136 / 0.1),
+      rgb(234 88 12 / 0.04) 45%,
+      transparent 70%
+    );
+    transition: opacity 0.4s ease;
+    will-change: transform;
+  }
+
+  .fx-glow[data-on="true"] {
+    opacity: 1;
+  }
+
+  /* 4. Click feedback: a small orange ring where you click a link/button. */
+  .fx-ripple {
+    position: fixed;
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+    border: 2px solid var(--color-highlight-500);
+    border-radius: 9999px;
+    pointer-events: none;
+    z-index: 60;
+    animation: fx-ripple 0.55s ease-out forwards;
+  }
+
+  /* 5. Navigation links: underline slides in on hover. */
+  .nav-link {
+    background-image: linear-gradient(currentColor, currentColor);
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    background-size: 0% 2px;
+    padding-bottom: 2px;
+    transition:
+      background-size 0.25s ease,
+      color 0.15s ease;
+  }
+
+  .nav-link:hover {
+    background-size: 100% 2px;
+  }
+}
+
+@keyframes fx-ripple {
+  from {
+    transform: scale(0.2);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
   }
 }
 
