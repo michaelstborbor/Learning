@@ -1,40 +1,38 @@
 @import "tailwindcss";
 
-/* EcoSkills Academy design tokens.
-   Color rationale: teal is brand/navigation, ochre is action/CTA, green is
-   reserved ONLY for verified competency (never "content viewed"), clay-red
-   is reserved ONLY for errors. This separation is deliberate: it reflects
-   the platform's core rule that watching a lesson and demonstrating a skill
-   are different things, and the UI must never let them look the same
-   (see PHASE0_BLUEPRINT.md, Section 1.4). Full rationale in DESIGN.md.
+/* EliteSkills Academy design tokens.
 
-   2026 refresh: filled out the brand/ink scales with intermediate shades
-   (200/300/500/900 for brand, 50/200/400/600/800/950 for ink) so hover
-   states, soft section backgrounds, and layered borders have something to
-   draw from. The background got a very faint warm sand undertone instead
-   of a neutral off-white, to better match DESIGN.md's "grounded in Sierra
-   Leone's real landscape" direction. action-500/600, ink-500/700/900, and
-   the verified/danger families are UNCHANGED from the F4 accessibility
-   audit — do not alter these without re-running contrast checks. */
+   Palette is taken from the Elite Network Limited logo: deep blue (#14539f)
+   is the brand colour, the bright sky blue (#2f9be6) is a decorative
+   accent only. Token NAMES are unchanged from the earlier teal version
+   (brand / action / verified / danger / ink), so no component needs editing.
+
+   Rules kept from DESIGN.md:
+   - action (ochre) = calls to action only. It also happens to be the
+     complement of the new blue, so buttons stand out clearly.
+   - verified (green) = ONLY demonstrated competency.
+   - danger (red) = ONLY errors and destructive actions.
+   - action-500/600 and the verified/danger families are byte-for-byte the
+     same as the accessibility-audited originals.
+
+   Contrast (WCAG 2.2 AA needs 4.5:1 for normal text), checked on the
+   #f8fbfe page background:
+     brand-600 text 7.3:1 | white on brand-600 7.6:1 | brand-500 text 5.1:1
+     ink-500 5.9:1 | ink-700 10.1:1 | ink-900 17.1:1
+   brand-300/400 are below 4.5:1 on purpose: decorative or large shapes
+   only, never body text. */
 :root {
-  --color-brand-50: #eef4f3;
-  --color-brand-100: #d3e5e2;
-  --color-brand-200: #abcac4;
-  --color-brand-300: #6fa89f;
-  --color-brand-400: #1f6e64;
-  --color-brand-500: #155b53;
-  --color-brand-600: #0f4c46;
-  --color-brand-700: #0b3833;
-  --color-brand-800: #082825;
-  --color-brand-900: #051715;
+  --color-brand-50: #eef7fd;
+  --color-brand-100: #d9ecfa;
+  --color-brand-200: #b0d8f3;
+  --color-brand-300: #78bbea;
+  --color-brand-400: #2f9be6;
+  --color-brand-500: #1a6cc0;
+  --color-brand-600: #14539f;
+  --color-brand-700: #0f4182;
+  --color-brand-800: #0b3166;
+  --color-brand-900: #07224a;
 
-  /* action-500/600 and ink-500 were audited for WCAG 2.2 AA contrast in
-     Stage F4 and found failing: white button text on the original
-     action-500 (#c8860d) measured ~3.06:1, and ink-500 (#71786f) measured
-     ~4.38:1 against the page background — both below the 4.5:1 AA minimum
-     for normal text. Values below are darkened just enough to clear AA
-     (verified ≥4.5:1) while staying in the same ochre/gray family. See
-     SECURITY.md's Accessibility section for the calculations. */
   --color-action-100: #fbe9cf;
   --color-action-500: #9c6209;
   --color-action-600: #7d4e07;
@@ -47,22 +45,20 @@
   --color-danger-500: #b4462f;
   --color-danger-700: #8a3322;
 
-  --color-ink-50: #f7f7f5;
-  --color-ink-100: #edeeec;
-  --color-ink-200: #dcdeda;
-  --color-ink-300: #c3c9c5;
-  --color-ink-400: #969e95;
-  --color-ink-500: #64695f;
-  --color-ink-600: #545a4f;
-  --color-ink-700: #444c47;
-  --color-ink-800: #2d332f;
-  --color-ink-900: #1c211f;
-  --color-ink-950: #10130f;
+  /* Cool slate neutrals so greys sit comfortably next to the blue. */
+  --color-ink-50: #f6f8fb;
+  --color-ink-100: #edf1f6;
+  --color-ink-200: #dce3ec;
+  --color-ink-300: #c2ccd9;
+  --color-ink-400: #8b99ab;
+  --color-ink-500: #556377;
+  --color-ink-600: #455264;
+  --color-ink-700: #344054;
+  --color-ink-800: #1d2939;
+  --color-ink-900: #101828;
+  --color-ink-950: #0a0f1a;
 
-  /* Faint warm sand undertone instead of a neutral off-white — small
-     enough to be felt rather than seen, keeps body text contrast
-     unaffected since --foreground is still ink-900 on top of it. */
-  --background: #fbfaf6;
+  --background: #f8fbfe;
   --foreground: var(--color-ink-900);
 
   --radius-base: 0.5rem;
@@ -112,9 +108,81 @@
   --font-display: "Space Grotesk", system-ui, sans-serif;
 }
 
-body {
-  color: var(--foreground);
-  background: var(--background);
+/* Slightly larger small text. The app uses text-xs / text-sm for most UI
+   chrome, and 12px / 14px is hard to read on a phone in daylight. */
+@theme {
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.5rem;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 1rem;
+  }
+
+  body {
+    color: var(--foreground);
+    background: var(--background);
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Default heading look. Any component that sets its own size or colour
+     with a Tailwind class still wins over these. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    color: var(--color-brand-800);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-size: clamp(1.875rem, 1.45rem + 1.8vw, 2.75rem);
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 1.25rem + 1vw, 2rem);
+    font-weight: 700;
+  }
+
+  h3 {
+    font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.5rem);
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    text-underline-offset: 3px;
+  }
+
+  /* One consistent, clearly visible keyboard focus ring. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-brand-100);
+    color: var(--color-brand-900);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
