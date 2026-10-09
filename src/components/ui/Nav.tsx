@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES, PUBLISH_ROLES, REVIEWER_ROLES } from "@/lib/roles";
 import { MobileNavToggle } from "./MobileNavToggle";
+import { MouseEffects } from "./MouseEffects";
 
 // Server component: reads the session cookie server-side, so the nav never
 // flashes a logged-out state or trusts anything the client claims.
@@ -15,54 +16,56 @@ export async function Nav() {
   const isContentReviewerOnly = session?.role === "CONTENT_REVIEWER";
   const isLearnerNav = session && !isInstructor && !isOrganization && !isContentReviewerOnly;
 
+  const linkClass = "nav-link hover:text-brand-600";
+
   const navLinks = (
     <>
-      <Link href="/courses" className="hover:text-brand-600">
+      <Link href="/courses" className={linkClass}>
         Courses
       </Link>
-      <Link href="/opportunities" className="hover:text-brand-600">
+      <Link href="/opportunities" className={linkClass}>
         Opportunities
       </Link>
       {isLearnerNav && (
         <>
-          <Link href="/dashboard" className="hover:text-brand-600">
+          <Link href="/dashboard" className={linkClass}>
             Dashboard
           </Link>
-          <Link href="/skills" className="hover:text-brand-600">
+          <Link href="/skills" className={linkClass}>
             Skills Passport
           </Link>
-          <Link href="/certificates" className="hover:text-brand-600">
+          <Link href="/certificates" className={linkClass}>
             Certificates
           </Link>
-          <Link href="/applications" className="hover:text-brand-600">
+          <Link href="/applications" className={linkClass}>
             My applications
           </Link>
         </>
       )}
       {isInstructor && (
-        <Link href="/instructor/courses" className="hover:text-brand-600">
+        <Link href="/instructor/courses" className={linkClass}>
           My courses
         </Link>
       )}
       {isReviewer && (
-        <Link href="/review" className="hover:text-brand-600">
+        <Link href="/review" className={linkClass}>
           Review queue
         </Link>
       )}
       {isOrganization && (
-        <Link href="/organization" className="hover:text-brand-600">
+        <Link href="/organization" className={linkClass}>
           Organization
         </Link>
       )}
       {isAdmin && (
-        <Link href="/admin" className="hover:text-brand-600">
+        <Link href="/admin" className={linkClass}>
           Admin
         </Link>
       )}
-      <Link href="/verify" className="hover:text-brand-600">
+      <Link href="/verify" className={linkClass}>
         Verify a certificate
       </Link>
-      <Link href="/about" className="hover:text-brand-600">
+      <Link href="/about" className={linkClass}>
         About
       </Link>
     </>
@@ -70,8 +73,10 @@ export async function Nav() {
 
   return (
     <header className="border-b border-brand-100 bg-white">
+      {/* Mouse effects run site-wide from here, since the nav is on every page. */}
+      <MouseEffects />
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="flex items-center gap-2.5">
+        <Link href="/" className="group flex items-center gap-2.5">
           {/* Decorative: the visible name next to it already names the link. */}
           <Image
             src="/logo.png"
@@ -79,16 +84,15 @@ export async function Nav() {
             width={40}
             height={40}
             priority
-            className="h-10 w-10 shrink-0"
+            className="h-10 w-10 shrink-0 transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
           />
-          <span className="font-display text-base font-bold leading-tight text-brand-700 sm:text-lg">
+          <span className="font-display text-base font-bold leading-tight text-ink-900 sm:text-lg">
             EliteSkills
             <span className="hidden min-[420px]:inline"> Academy</span>
           </span>
         </Link>
 
-        {/* Full menu from large screens up; tablets and phones get the ☰ menu,
-            because 6-8 links do not fit side by side below ~1024px. */}
+        {/* Full menu from large screens up; tablets and phones get the menu icon. */}
         <nav className="hidden items-center gap-6 text-sm text-ink-700 lg:flex">
           {navLinks}
         </nav>
