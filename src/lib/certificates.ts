@@ -16,8 +16,8 @@ function generateCertificateNumber(): string {
  * "what counts as earning a certificate" lives in one auditable function,
  * not scattered across route handlers.
  *
- * Criteria: 100% lesson progress, AND a passed QuizAttempt if the course
- * has a quiz, AND a passing graded ProjectSubmission if the course has a
+ * Criteria: 100% lesson progress, AND a passed QuizAttempt on every quiz
+ * the course has, AND a passing graded ProjectSubmission if the course has a
  * project. A course with neither assessment certifies on completion alone
  * — most courses are expected to have at least one, but the check doesn't
  * assume it.
@@ -43,12 +43,19 @@ export async function maybeIssueCertificate(
   if (!course || !enrolment) return;
   if (enrolment.progressPercent < 100) return;
 
-  const quiz = await prisma.quiz.findUnique({ where: { courseId } });
-  if (quiz) {
-    const passedAttempt = await prisma.quizAttempt.findFirst({
-      where: { quizId: quiz.id, learnerId, passed: true },
+  const quizzes = await prisma.quiz.findMany({ where: { courseId }, select: { id: true } });
+  if (quizzes.length > 0) {
+    const passedQuizIds = await prisma.quizAttempt.findMany({
+      where: {
+        quizId: { in: quizzes.map((q) => q.id) },
+        learnerId,
+        status: "SUBMITTED",
+        passed: true,
+      },
+      distinct: ["quizId"],
+      select: { quizId: true },
     });
-    if (!passedAttempt) return;
+    if (passedQuizIds.length < quizzes.length) return;
   }
 
   const project = await prisma.project.findUnique({ where: { courseId } });
@@ -71,8 +78,7 @@ export async function maybeIssueCertificate(
     certificateNumber = generateCertificateNumber();
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-  await prisma.$transaction(async (tx: any) => {
+  await prisma.$transaction(async (tx) => {
     const certificate = await tx.certificate.create({
       data: {
         certificateNumber,

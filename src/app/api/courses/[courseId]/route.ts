@@ -17,7 +17,12 @@ export async function GET(
         orderBy: { order: "asc" },
         include: { lessons: { orderBy: { order: "asc" } } },
       },
-      quiz: { include: { questions: { include: { answers: true } } } },
+      // Summary only: answers (and which are correct) must never be sent
+      // from a public endpoint. Learners load questions via /api/quiz.
+      quizzes: {
+        select: { id: true, title: true, moduleId: true, passMarkPercent: true, timeLimitMinutes: true },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+      },
       project: true,
     },
   });

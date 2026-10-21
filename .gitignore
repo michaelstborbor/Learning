@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+.env
+.env*.local
+# Course media stored on local disk (STORAGE_DRIVER=local)
+storage/
+test-results/
+playwright-report/
+*.log

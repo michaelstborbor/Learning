@@ -214,7 +214,7 @@ async function main() {
     }
 
     if (opts.quizQuestions) {
-      const existingQuiz = await prisma.quiz.findUnique({ where: { courseId: course.id } });
+      const existingQuiz = await prisma.quiz.findFirst({ where: { courseId: course.id } });
       if (!existingQuiz) {
         await prisma.quiz.create({
           data: {
@@ -304,6 +304,86 @@ async function main() {
       skillName: "Microsoft Excel",
     },
   });
+
+  // A timed module quiz on the first Excel module, showing every question
+  // type (multiple answers, true/false, short answer) with points and
+  // explanations.
+  const firstExcelModule = await prisma.module.findFirst({
+    where: { courseId: excelWorkplace.id },
+    orderBy: { order: "asc" },
+  });
+  if (firstExcelModule && !(await prisma.quiz.findFirst({ where: { moduleId: firstExcelModule.id } }))) {
+    await prisma.quiz.create({
+      data: {
+        courseId: excelWorkplace.id,
+        moduleId: firstExcelModule.id,
+        title: "Module 1 check: Excel basics",
+        description: "Five quick questions on the first module. You have 10 minutes and three attempts.",
+        passMarkPercent: 60,
+        timeLimitMinutes: 10,
+        maxAttempts: 3,
+        shuffleQuestions: true,
+        order: 0,
+        questions: {
+          create: [
+            {
+              type: "TRUE_FALSE",
+              prompt: "A spreadsheet cell is identified by its column letter followed by its row number, like B4.",
+              points: 1,
+              order: 0,
+              explanation: "Columns are letters and rows are numbers, so B4 is column B, row 4.",
+              answers: { create: [{ text: "True", isCorrect: true }, { text: "False", isCorrect: false }] },
+            },
+            {
+              type: "MULTIPLE_CHOICE",
+              prompt: "Which of these keep a data table clean and easy to analyse? Select all that apply.",
+              points: 3,
+              order: 1,
+              explanation: "One header row, one record per row and a consistent format per column make data sortable and summarisable.",
+              answers: {
+                create: [
+                  { text: "A single header row", isCorrect: true },
+                  { text: "One record per row", isCorrect: true },
+                  { text: "Merged cells across the data", isCorrect: false },
+                  { text: "The same format in each column", isCorrect: true },
+                ],
+              },
+            },
+            {
+              type: "SINGLE_CHOICE",
+              prompt: "What does the fill handle (the small square at a cell's corner) do when you drag it?",
+              points: 2,
+              order: 2,
+              explanation: "Dragging the fill handle copies the cell or continues a series such as 1, 2, 3 or Mon, Tue, Wed.",
+              answers: {
+                create: [
+                  { text: "Deletes the selected cells", isCorrect: false },
+                  { text: "Copies the cell or continues a series", isCorrect: true },
+                  { text: "Changes the font colour", isCorrect: false },
+                ],
+              },
+            },
+            {
+              type: "SHORT_ANSWER",
+              prompt: "Which keyboard shortcut saves your workbook on Windows?",
+              points: 2,
+              order: 3,
+              explanation: "Ctrl + S saves. Save often, especially on unreliable power.",
+              answers: { create: [{ text: "Ctrl + S", isCorrect: true }, { text: "Ctrl+S", isCorrect: true }, { text: "Control S", isCorrect: true }] },
+            },
+            {
+              type: "TRUE_FALSE",
+              prompt: "Typing a number with a space in it, like '12 500', is stored by Excel as a number.",
+              points: 1,
+              order: 4,
+              explanation: "With a space, Excel usually stores it as text, so formulas like SUM ignore it.",
+              answers: { create: [{ text: "True", isCorrect: false }, { text: "False", isCorrect: true }] },
+            },
+          ],
+        },
+      },
+    });
+  }
 
   await buildFullCourse({
     title: "Advanced Excel",

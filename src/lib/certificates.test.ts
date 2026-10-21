@@ -16,10 +16,10 @@ const mockPrisma = {
     findUnique: vi.fn(),
   },
   quiz: {
-    findUnique: vi.fn(),
+    findMany: vi.fn(),
   },
   quizAttempt: {
-    findFirst: vi.fn(),
+    findMany: vi.fn(),
   },
   project: {
     findUnique: vi.fn(),
@@ -42,8 +42,8 @@ function resetAllMocks() {
   mockPrisma.certificate.findUnique.mockReset();
   mockPrisma.course.findUnique.mockReset();
   mockPrisma.enrolment.findUnique.mockReset();
-  mockPrisma.quiz.findUnique.mockReset();
-  mockPrisma.quizAttempt.findFirst.mockReset();
+  mockPrisma.quiz.findMany.mockReset();
+  mockPrisma.quizAttempt.findMany.mockReset();
   mockPrisma.project.findUnique.mockReset();
   mockPrisma.projectSubmission.findFirst.mockReset();
   mockPrisma.$transaction.mockReset();
@@ -84,9 +84,21 @@ describe("maybeIssueCertificate", () => {
   it("does nothing if the course has a quiz but no passed attempt exists", async () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findUnique.mockResolvedValueOnce({ id: "quiz-1" });
-    mockPrisma.quizAttempt.findFirst.mockResolvedValueOnce(null); // no passing attempt
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }]);
+    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([]); // no passing attempt
     mockPrisma.project.findUnique.mockResolvedValueOnce(null); // no project on this course
+
+    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
+
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("does nothing if the course has several quizzes and only some have been passed", async () => {
+    mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }, { id: "quiz-2" }]);
+    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([{ quizId: "quiz-1" }]);
+    mockPrisma.project.findUnique.mockResolvedValueOnce(null);
 
     await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
 
@@ -96,7 +108,7 @@ describe("maybeIssueCertificate", () => {
   it("does nothing if the course has a project but no passing graded submission exists — THE core Rule 1/2 case: watching lessons and even passing the quiz is never enough on its own", async () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findUnique.mockResolvedValueOnce(null); // no quiz on this course
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([]); // no quiz on this course
     mockPrisma.project.findUnique.mockResolvedValueOnce({ id: "project-1" });
     mockPrisma.projectSubmission.findFirst.mockResolvedValueOnce(null); // no passing submission
 
@@ -110,8 +122,8 @@ describe("maybeIssueCertificate", () => {
       .mockResolvedValueOnce(null) // existing-certificate check
       .mockResolvedValueOnce(null); // certificate-number uniqueness check
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findUnique.mockResolvedValueOnce({ id: "quiz-1" });
-    mockPrisma.quizAttempt.findFirst.mockResolvedValueOnce({ id: "attempt-1", passed: true });
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }]);
+    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([{ quizId: "quiz-1" }]);
     mockPrisma.project.findUnique.mockResolvedValueOnce({ id: "project-1" });
     mockPrisma.projectSubmission.findFirst.mockResolvedValueOnce({ id: "submission-1", score: 85 });
 
@@ -145,7 +157,7 @@ describe("maybeIssueCertificate", () => {
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([]);
     mockPrisma.project.findUnique.mockResolvedValueOnce(null);
 
     const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert-2" });
@@ -167,7 +179,7 @@ describe("maybeIssueCertificate", () => {
       .mockResolvedValueOnce({ id: "collides" }) // first generated number already taken
       .mockResolvedValueOnce(null); // second generated number is free
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findUnique.mockResolvedValueOnce(null);
+    mockPrisma.quiz.findMany.mockResolvedValueOnce([]);
     mockPrisma.project.findUnique.mockResolvedValueOnce(null);
 
     const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert-3" });
