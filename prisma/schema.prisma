@@ -44,21 +44,22 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  coursesTaught      Course[]           @relation("InstructorCourses")
-  enrolments         Enrolment[]
-  lessonProgress     LessonProgress[]
-  quizAttempts       QuizAttempt[]
-  projectSubmissions ProjectSubmission[] @relation("LearnerSubmissions")
-  gradedSubmissions  ProjectSubmission[] @relation("GraderSubmissions")
-  learnerSkills      LearnerSkill[]
-  certificates       Certificate[]
+  coursesTaught       Course[]              @relation("InstructorCourses")
+  enrolments          Enrolment[]
+  lessonProgress      LessonProgress[]
+  quizAttempts        QuizAttempt[]
+  projectSubmissions  ProjectSubmission[]   @relation("LearnerSubmissions")
+  gradedSubmissions   ProjectSubmission[]   @relation("GraderSubmissions")
+  learnerSkills       LearnerSkill[]
+  certificates        Certificate[]
   revokedCertificates CertificateAuditLog[] @relation("CertificateAuditPerformer")
-  organization       Organization?
-  cohortMemberships  CohortMember[]
-  verificationTokens VerificationToken[]
-  adminAuditLogs     AdminAuditLog[]
-  attendanceRecords  AttendanceRecord[]
-  applications       Application[]
+  organization        Organization?
+  cohortMemberships   CohortMember[]
+  verificationTokens  VerificationToken[]
+  adminAuditLogs      AdminAuditLog[]
+  uploadedMedia       CourseMedia[]
+  attendanceRecords   AttendanceRecord[]
+  applications        Application[]
 
   @@map("users")
 }
@@ -122,12 +123,13 @@ model Course {
   instructorId String
   instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
 
-  modules     Module[]
-  enrolments  Enrolment[]
-  quiz        Quiz?
-  project     Project?
+  modules      Module[]
+  enrolments   Enrolment[]
+  quizzes      Quiz[]
+  project      Project?
+  media        CourseMedia[]
   certificates Certificate[]
-  cohorts     Cohort[]
+  cohorts      Cohort[]
 
   @@map("courses")
 }
@@ -140,6 +142,7 @@ model Module {
   order    Int
 
   lessons Lesson[]
+  quizzes Quiz[]
 
   @@map("modules")
 }
@@ -149,25 +152,25 @@ model Lesson {
   moduleId String
   module   Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
   title    String
-  // Plain markdown/text content. Video/file resources arrive once object
-  // storage exists (see ARCHITECTURE.md, File storage section) — no
-  // storage backend has been built yet, so lessons are text-only for now.
+  // Plain markdown/text content. Video, audio and document files are
+  // attached separately as CourseMedia rows (see "Course media" below).
   content  String
   order    Int
 
   progress LessonProgress[]
+  media    CourseMedia[]
 
   @@map("lessons")
 }
 
 model Enrolment {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   learnerId       String
-  learner         User     @relation(fields: [learnerId], references: [id])
+  learner         User      @relation(fields: [learnerId], references: [id])
   courseId        String
-  course          Course   @relation(fields: [courseId], references: [id])
-  progressPercent Int      @default(0)
-  enrolledAt      DateTime @default(now())
+  course          Course    @relation(fields: [courseId], references: [id])
+  progressPercent Int       @default(0)
+  enrolledAt      DateTime  @default(now())
   completedAt     DateTime?
 
   @@unique([learnerId, courseId])
@@ -186,38 +189,65 @@ model LessonProgress {
   @@map("lesson_progress")
 }
 
-// One knowledge-check quiz per course at this stage (matches the initial
-// course structure example in PHASE0_BLUEPRINT.md — a per-module quiz can
-// be added later if a course needs finer-grained knowledge checks).
+// Knowledge-check quizzes. A course can have several: a quiz attached to a
+// module (moduleId set) checks that module, and a quiz with no module is a
+// course-level / final quiz. A certificate needs a passing attempt on EVERY
+// quiz in the course (see src/lib/certificates.ts).
 model Quiz {
-  id             String @id @default(cuid())
-  courseId       String @unique
-  course         Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  title          String
-  passMarkPercent Int   @default(70)
+  id               String   @id @default(cuid())
+  courseId         String
+  course           Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  moduleId         String?
+  module           Module?  @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  title            String
+  description      String?
+  passMarkPercent  Int      @default(70)
+  // Null = untimed. The server enforces it (see api/quiz/[quizId]/attempt),
+  // the countdown in the browser is only a convenience.
+  timeLimitMinutes Int?
+  // Null = unlimited attempts.
+  maxAttempts      Int?
+  shuffleQuestions Boolean  @default(false)
+  // Whether learners see the correct answers + explanations after submitting.
+  showAnswers      Boolean  @default(true)
+  // Relative weight of this quiz in the course grade (see src/lib/gradebook.ts).
+  weight           Int      @default(1)
+  order            Int      @default(0)
+  createdAt        DateTime @default(now())
 
   questions Question[]
   attempts  QuizAttempt[]
 
+  @@index([courseId])
   @@map("quizzes")
 }
 
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TRUE_FALSE
+  SHORT_ANSWER
+}
+
 model Question {
-  id     String @id @default(cuid())
-  quizId String
-  quiz   Quiz   @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  prompt String
-  order  Int
+  id          String       @id @default(cuid())
+  quizId      String
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  type        QuestionType @default(SINGLE_CHOICE)
+  prompt      String
+  points      Int          @default(1)
+  // Shown to the learner after submitting, when the quiz allows it.
+  explanation String?
+  order       Int
 
   answers Answer[]
 
   @@map("questions")
 }
 
-// Single-correct-answer multiple choice at this stage — matches the
-// original brief's MVP assessment types most directly. Multiple-response,
-// true/false-as-a-special-case, and short-answer can be added as
-// additional Question "kind" variants later without breaking this shape.
+// For choice questions these are the options (one or more marked correct).
+// For SHORT_ANSWER questions every row is an accepted answer, compared
+// case- and whitespace-insensitively (see src/lib/grading.ts).
 model Answer {
   id         String   @id @default(cuid())
   questionId String
@@ -228,16 +258,35 @@ model Answer {
   @@map("answers")
 }
 
-model QuizAttempt {
-  id           String   @id @default(cuid())
-  quizId       String
-  quiz         Quiz     @relation(fields: [quizId], references: [id])
-  learnerId    String
-  learner      User     @relation(fields: [learnerId], references: [id])
-  scorePercent Int
-  passed       Boolean
-  attemptedAt  DateTime @default(now())
+enum AttemptStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
 
+model QuizAttempt {
+  id             String        @id @default(cuid())
+  quizId         String
+  quiz           Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  learnerId      String
+  learner        User          @relation(fields: [learnerId], references: [id])
+  // Existing rows predate timed attempts, so they default to SUBMITTED.
+  status         AttemptStatus @default(SUBMITTED)
+  scorePercent   Int           @default(0)
+  pointsEarned   Int           @default(0)
+  pointsPossible Int           @default(0)
+  passed         Boolean       @default(false)
+  // Answers saved while the attempt is in progress (autosave), keyed by
+  // question id. Graded server-side on submit.
+  responses      Json?
+  // A snapshot of every question's result at grading time, so the review
+  // screen still works after an instructor edits the quiz.
+  review         Json?
+  questionOrder  String[]      @default([])
+  attemptedAt    DateTime      @default(now())
+  deadlineAt     DateTime?
+  submittedAt    DateTime?
+
+  @@index([quizId, learnerId])
   @@map("quiz_attempts")
 }
 
@@ -254,6 +303,8 @@ model Project {
   rubric       String
   skillId      String?
   skill        Skill?  @relation(fields: [skillId], references: [id])
+  // Relative weight of the project in the course grade (see src/lib/gradebook.ts).
+  weight       Int     @default(2)
 
   submissions ProjectSubmission[]
 
@@ -261,22 +312,22 @@ model Project {
 }
 
 model ProjectSubmission {
-  id         String           @id @default(cuid())
-  projectId  String
-  project    Project          @relation(fields: [projectId], references: [id])
-  learnerId  String
-  learner    User             @relation("LearnerSubmissions", fields: [learnerId], references: [id])
+  id            String           @id @default(cuid())
+  projectId     String
+  project       Project          @relation(fields: [projectId], references: [id])
+  learnerId     String
+  learner       User             @relation("LearnerSubmissions", fields: [learnerId], references: [id])
   // A link (e.g. to a Google Doc, Sheet, or hosted file) rather than an
   // uploaded file — no object storage exists yet (see ARCHITECTURE.md).
   submissionUrl String
-  notes      String?
-  status     SubmissionStatus @default(PENDING)
-  score      Int?
-  feedback   String?
-  gradedById String?
-  gradedBy   User?            @relation("GraderSubmissions", fields: [gradedById], references: [id])
-  gradedAt   DateTime?
-  submittedAt DateTime        @default(now())
+  notes         String?
+  status        SubmissionStatus @default(PENDING)
+  score         Int?
+  feedback      String?
+  gradedById    String?
+  gradedBy      User?            @relation("GraderSubmissions", fields: [gradedById], references: [id])
+  gradedAt      DateTime?
+  submittedAt   DateTime         @default(now())
 
   @@map("project_submissions")
 }
@@ -296,14 +347,14 @@ model Skill {
 }
 
 model LearnerSkill {
-  id                 String            @id @default(cuid())
-  learnerId          String
-  learner            User              @relation(fields: [learnerId], references: [id])
-  skillId            String
-  skill              Skill             @relation(fields: [skillId], references: [id])
-  verificationStatus CompetencyStatus  @default(NOT_ASSESSED)
+  id                   String           @id @default(cuid())
+  learnerId            String
+  learner              User             @relation(fields: [learnerId], references: [id])
+  skillId              String
+  skill                Skill            @relation(fields: [skillId], references: [id])
+  verificationStatus   CompetencyStatus @default(NOT_ASSESSED)
   evidenceSubmissionId String?
-  updatedAt          DateTime          @updatedAt
+  updatedAt            DateTime         @updatedAt
 
   @@unique([learnerId, skillId])
   @@map("learner_skills")
@@ -397,17 +448,17 @@ enum DeliveryMode {
 }
 
 model Cohort {
-  id             String       @id @default(cuid())
+  id             String        @id @default(cuid())
   courseId       String
-  course         Course       @relation(fields: [courseId], references: [id])
+  course         Course        @relation(fields: [courseId], references: [id])
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id])
   title          String
   startDate      DateTime
   endDate        DateTime
   location       String?
-  deliveryMode   DeliveryMode @default(ONLINE)
-  createdAt      DateTime     @default(now())
+  deliveryMode   DeliveryMode  @default(ONLINE)
+  createdAt      DateTime      @default(now())
 
   members     CohortMember[]
   attendance  AttendanceRecord[]
@@ -457,16 +508,16 @@ enum OpportunityStatus {
 }
 
 model Opportunity {
-  id                 String            @id @default(cuid())
-  organizationId     String
-  organization       Organization      @relation(fields: [organizationId], references: [id])
-  title              String
-  type               OpportunityType
-  description        String
+  id                  String            @id @default(cuid())
+  organizationId      String
+  organization        Organization      @relation(fields: [organizationId], references: [id])
+  title               String
+  type                OpportunityType
+  description         String
   eligibilityCriteria String
-  location           String?
-  status             OpportunityStatus @default(OPEN)
-  createdAt          DateTime          @default(now())
+  location            String?
+  status              OpportunityStatus @default(OPEN)
+  createdAt           DateTime          @default(now())
 
   applications Application[]
 
@@ -561,4 +612,51 @@ model AdminAuditLog {
   createdAt  DateTime @default(now())
 
   @@map("admin_audit_log")
+}
+
+// ---------------------------------------------------------------------
+// Course media — compressed video, audio and document attachments.
+//
+// Files are compressed in the uploader's browser before they leave the
+// device (video/audio are re-encoded, text documents are gzipped), then
+// stored through src/lib/storage.ts: an S3-compatible bucket in
+// production, or a local folder in development. Only metadata lives here.
+// ---------------------------------------------------------------------
+
+enum MediaKind {
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum MediaStatus {
+  UPLOADING
+  READY
+}
+
+model CourseMedia {
+  id                String      @id @default(cuid())
+  courseId          String
+  course            Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // Null = a course-wide resource; set = shown on that lesson.
+  lessonId          String?
+  lesson            Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  kind              MediaKind
+  status            MediaStatus @default(UPLOADING)
+  title             String
+  fileName          String
+  mimeType          String
+  // "gzip" when the stored bytes are gzip-compressed (documents only).
+  contentEncoding   String?
+  sizeBytes         Int
+  originalSizeBytes Int
+  durationSeconds   Int?
+  storageKey        String      @unique
+  uploadedById      String
+  uploadedBy        User        @relation(fields: [uploadedById], references: [id])
+  createdAt         DateTime    @default(now())
+
+  @@index([courseId])
+  @@index([lessonId])
+  @@map("course_media")
 }

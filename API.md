@@ -34,7 +34,7 @@ the request shapes from route source. All routes are under `/api/`.
 |---|---|---|---|
 | GET | `/api/courses` | Public | List published courses. |
 | POST | `/api/courses` | Instructor/Admin | Create a new draft course. |
-| GET | `/api/courses/[courseId]` | Public if published, else owner/admin | Full course detail including modules/quiz/project. |
+| GET | `/api/courses/[courseId]` | Public if published, else owner/admin | Course detail with modules, project and a quiz summary (no questions or answers). |
 | PATCH | `/api/courses/[courseId]` | Owner/Admin | Update course fields (title, description, etc.). |
 | POST | `/api/courses/[courseId]/submit-review` | Owner/Admin | Draft → Under Review. |
 | POST | `/api/courses/[courseId]/review` | Content Reviewer/Admin | Approve (→ Approved) or request changes (→ Draft, with required feedback). |
@@ -48,12 +48,26 @@ the request shapes from route source. All routes are under `/api/`.
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| PUT | `/api/courses/[courseId]/quiz` | Owner/Admin | Create/replace the course's quiz (full replace-on-save). |
-| GET | `/api/quiz/[quizId]` | Session (must be enrolled) | Learner-safe quiz fetch — **never** includes `isCorrect`. |
-| POST | `/api/quiz/[quizId]/attempt` | Session (must be enrolled) | Submit answers; graded entirely server-side via `gradeQuiz()`. May trigger certificate issuance on a pass. |
+| POST | `/api/courses/[courseId]/quizzes` | Owner/Admin | Create a quiz (per module, or a final quiz). Settings: pass mark, time limit, attempt limit, shuffle, show answers, weight. Question types: single choice, multiple answers, true/false, short answer, each with points and an explanation. |
+| PUT / DELETE | `/api/quiz/[quizId]` | Owner/Admin | Replace a quiz's settings and questions, or delete it. |
+| GET | `/api/quiz/[quizId]` | Session (must be enrolled) | Learner-safe quiz fetch — **never** includes `isCorrect` or short-answer solutions. |
+| POST | `/api/quiz/[quizId]/start` | Session (must be enrolled) | Start or resume an attempt. Fixes the deadline server-side for timed quizzes and enforces the attempt limit. |
+| PATCH | `/api/quiz/[quizId]/attempt` | Session (attempt owner) | Autosave answers while the attempt is open. |
+| POST | `/api/quiz/[quizId]/attempt` | Session (attempt owner) | Submit; graded entirely server-side via `gradeQuiz()`. After the deadline (+30 s grace) only autosaved answers count. Returns the review the quiz allows. May trigger certificate issuance on a pass. |
+| GET | `/api/courses/[courseId]/gradebook` | Owner/Admin | Gradebook as CSV. |
 | PUT | `/api/courses/[courseId]/project` | Owner/Admin | Create/update the course's practical project. |
 | POST | `/api/projects/[projectId]/submit` | Session (must be enrolled) | Submit a project (a link, not a file — no object storage yet). Sets the linked skill to `IN_PROGRESS`. |
 | POST | `/api/submissions/[submissionId]/grade` | Owner/Admin (via course) | Grade a submission. A passing score (≥70) promotes the skill to `DEMONSTRATED` and may trigger certificate issuance. |
+
+## Course media
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/courses/[courseId]/media` | Owner/Admin | Register an already-compressed video, audio or document file; returns where to upload it (signed bucket URL, or the route below). |
+| PUT | `/api/media/[mediaId]/upload` | Owner/Admin | Receives the bytes when `STORAGE_DRIVER=local`. |
+| POST | `/api/media/[mediaId]/complete` | Owner/Admin | Confirms the stored size matches, then makes the file visible to learners. |
+| GET | `/api/media/[mediaId]` | Owner/Admin, reviewers, enrolled learners | Streams the file with Range support (local) or redirects to a short-lived signed URL (S3). `?download` forces a download. |
+| DELETE | `/api/media/[mediaId]` | Owner/Admin | Delete the file and its record. |
 
 ## Certificates
 

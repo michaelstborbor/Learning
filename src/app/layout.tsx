@@ -4,6 +4,7 @@ import "@fontsource/space-grotesk/600.css";
 import "@fontsource/space-grotesk/700.css";
 import "./globals.css";
 import { SkipLink } from "@/components/ui/SkipLink";
+import { Footer } from "@/components/ui/Footer";
 
 // System fonts for body text (zero network cost); Space Grotesk is
 // self-hosted (via @fontsource, not a Google Fonts CDN call) and used only
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col font-sans">
         <SkipLink />
         {children}
+        <Footer />
       </body>
     </html>
   );

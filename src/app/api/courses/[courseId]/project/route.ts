@@ -10,6 +10,7 @@ const projectSchema = z.object({
   rubric: z.string().trim().min(10),
   skillName: z.string().trim().min(2).optional(),
   skillCategory: z.string().trim().min(2).optional(),
+  weight: z.number().int().min(0).max(100).optional(),
 });
 
 export async function PUT(
@@ -35,7 +36,7 @@ export async function PUT(
     );
   }
 
-  const { title, instructions, rubric, skillName, skillCategory } = parsed.data;
+  const { title, instructions, rubric, skillName, skillCategory, weight } = parsed.data;
 
   let skillId: string | undefined;
   if (skillName) {
@@ -49,8 +50,8 @@ export async function PUT(
 
   const project = await prisma.project.upsert({
     where: { courseId },
-    update: { title, instructions, rubric, skillId },
-    create: { courseId, title, instructions, rubric, skillId },
+    update: { title, instructions, rubric, skillId, weight },
+    create: { courseId, title, instructions, rubric, skillId, weight },
   });
 
   return NextResponse.json(project);

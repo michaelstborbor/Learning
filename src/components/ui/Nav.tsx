@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES, PUBLISH_ROLES, REVIEWER_ROLES } from "@/lib/roles";
 import { MobileNavToggle } from "./MobileNavToggle";
 import { MouseEffects } from "./MouseEffects";
+import { NavLinks, type NavItem } from "./NavLinks";
 
 // Server component: reads the session cookie server-side, so the nav never
 // flashes a logged-out state or trusts anything the client claims.
@@ -16,67 +17,34 @@ export async function Nav() {
   const isContentReviewerOnly = session?.role === "CONTENT_REVIEWER";
   const isLearnerNav = session && !isInstructor && !isOrganization && !isContentReviewerOnly;
 
-  const linkClass = "nav-link hover:text-brand-600";
-
-  const navLinks = (
-    <>
-      <Link href="/courses" className={linkClass}>
-        Courses
-      </Link>
-      <Link href="/opportunities" className={linkClass}>
-        Opportunities
-      </Link>
-      {isLearnerNav && (
-        <>
-          <Link href="/dashboard" className={linkClass}>
-            Dashboard
-          </Link>
-          <Link href="/skills" className={linkClass}>
-            Skills Passport
-          </Link>
-          <Link href="/certificates" className={linkClass}>
-            Certificates
-          </Link>
-          <Link href="/applications" className={linkClass}>
-            My applications
-          </Link>
-        </>
-      )}
-      {isInstructor && (
-        <Link href="/instructor/courses" className={linkClass}>
-          My courses
-        </Link>
-      )}
-      {isReviewer && (
-        <Link href="/review" className={linkClass}>
-          Review queue
-        </Link>
-      )}
-      {isOrganization && (
-        <Link href="/organization" className={linkClass}>
-          Organization
-        </Link>
-      )}
-      {isAdmin && (
-        <Link href="/admin" className={linkClass}>
-          Admin
-        </Link>
-      )}
-      <Link href="/verify" className={linkClass}>
-        Verify a certificate
-      </Link>
-      <Link href="/about" className={linkClass}>
-        About
-      </Link>
-    </>
-  );
+  // Kept to a handful per role; secondary pages (verify, about, help) live
+  // in the footer so the bar stays scannable.
+  const items: NavItem[] = [];
+  if (isLearnerNav) {
+    items.push(
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/courses", label: "Courses" },
+      { href: "/grades", label: "Grades" },
+      { href: "/skills", label: "Skills Passport" },
+      { href: "/certificates", label: "Certificates" },
+      { href: "/opportunities", label: "Opportunities" },
+    );
+  } else {
+    items.push({ href: "/courses", label: "Courses" });
+    if (isInstructor) items.push({ href: "/instructor/courses", label: "My courses" });
+    if (isReviewer) items.push({ href: "/review", label: "Review queue" });
+    if (isOrganization) items.push({ href: "/organization", label: "Organization" });
+    if (isAdmin) items.push({ href: "/admin", label: "Admin" });
+    items.push({ href: "/opportunities", label: "Opportunities" });
+    if (!session) items.push({ href: "/about", label: "About" });
+  }
 
   return (
-    <header className="border-b border-brand-100 bg-white">
+    <header className="sticky top-0 z-40 border-b border-brand-100/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
       {/* Mouse effects run site-wide from here, since the nav is on every page. */}
       <MouseEffects />
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/" className="group flex items-center gap-2.5">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+        <Link href={session ? (isLearnerNav ? "/dashboard" : "/") : "/"} className="group flex items-center gap-2.5">
           {/* Decorative: the visible name next to it already names the link. */}
           <Image
             src="/logo.png"
@@ -93,15 +61,15 @@ export async function Nav() {
         </Link>
 
         {/* Full menu from large screens up; tablets and phones get the menu icon. */}
-        <nav className="hidden items-center gap-6 text-sm text-ink-700 lg:flex">
-          {navLinks}
+        <nav aria-label="Main" className="hidden items-center gap-5 text-sm text-ink-700 lg:flex">
+          <NavLinks items={items} layout="bar" />
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
           {session ? (
             <Link
               href="/account"
-              className="rounded-md bg-action-500 px-3 py-2 text-sm font-medium text-white hover:bg-action-600 sm:px-4"
+              className="inline-flex min-h-10 items-center rounded-lg bg-action-500 px-3 py-2 text-sm font-semibold text-white hover:bg-action-600 sm:px-4"
             >
               My account
             </Link>
@@ -109,19 +77,21 @@ export async function Nav() {
             <>
               <Link
                 href="/login"
-                className="text-sm font-medium text-ink-700 hover:text-brand-600"
+                className="inline-flex min-h-10 items-center px-2 text-sm font-medium text-ink-700 hover:text-brand-600"
               >
                 Log in
               </Link>
               <Link
                 href="/register"
-                className="rounded-md bg-action-500 px-3 py-2 text-sm font-medium text-white hover:bg-action-600 sm:px-4"
+                className="inline-flex min-h-10 items-center rounded-lg bg-action-500 px-3 py-2 text-sm font-semibold text-white hover:bg-action-600 sm:px-4"
               >
                 Get started
               </Link>
             </>
           )}
-          <MobileNavToggle>{navLinks}</MobileNavToggle>
+          <MobileNavToggle>
+            <NavLinks items={items} layout="menu" />
+          </MobileNavToggle>
         </div>
       </div>
     </header>

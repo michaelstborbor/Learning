@@ -1,13 +1,16 @@
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
 import { Nav } from "@/components/ui/Nav";
 import { Badge } from "@/components/ui/Badge";
-import { Card } from "@/components/ui/Card";
 import { Alert } from "@/components/ui/Alert";
+import { Icon, type IconName } from "@/components/ui/Icon";
+import { CourseCover } from "@/components/ui/CourseCover";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 import { AddModuleForm, AddLessonForm } from "@/components/courses/ModuleLessonForms";
-import { QuizBuilder } from "@/components/courses/QuizBuilder";
+import { QuizzesManager } from "@/components/courses/QuizzesManager";
+import { MediaManager } from "@/components/courses/MediaManager";
 import { ProjectBuilder } from "@/components/courses/ProjectBuilder";
 import { SubmissionsGrader } from "@/components/courses/SubmissionsGrader";
 import { PublishToggle } from "@/components/courses/PublishToggle";
@@ -20,6 +23,48 @@ const STATUS_LABEL: Record<string, string> = {
   PUBLISHED: "Published",
   ARCHIVED: "Archived",
 };
+
+const SECTIONS = [
+  { id: "content", label: "Lessons" },
+  { id: "media", label: "Media" },
+  { id: "quizzes", label: "Quizzes" },
+  { id: "project", label: "Project" },
+  { id: "grading", label: "Grading" },
+];
+
+function Stat({ icon, value, label }: { icon: IconName; value: string; label: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-ink-100 bg-white p-4">
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+        <Icon name={icon} />
+      </span>
+      <div>
+        <p className="font-display text-xl font-bold tabular-nums text-ink-900">{value}</p>
+        <p className="text-xs text-ink-500">{label}</p>
+      </div>
+    </div>
+  );
+}
+
+function Section({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id: string;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} className="scroll-mt-32 border-t border-ink-100 pt-8">
+      <h2 className="font-display text-xl font-semibold text-ink-900">{title}</h2>
+      {description && <p className="mt-1 max-w-2xl text-sm text-ink-500">{description}</p>}
+      <div className="mt-5">{children}</div>
+    </section>
+  );
+}
 
 export default async function ManageCoursePage({
   params,
@@ -34,8 +79,14 @@ export default async function ManageCoursePage({
     where: { id: courseId },
     include: {
       modules: { orderBy: { order: "asc" }, include: { lessons: { orderBy: { order: "asc" } } } },
-      quiz: { include: { questions: { include: { answers: true }, orderBy: { order: "asc" } } } },
+      quizzes: {
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        include: {
+          questions: { include: { answers: { orderBy: { id: "asc" } } }, orderBy: { order: "asc" } },
+        },
+      },
       project: true,
+      media: { where: { status: "READY" }, orderBy: { createdAt: "desc" } },
     },
   });
   if (!course) notFound();
@@ -43,6 +94,7 @@ export default async function ManageCoursePage({
 
   const isAdmin = session.role === "PLATFORM_ADMIN" || session.role === "SUPER_ADMIN";
   const isOwner = session.userId === course.instructorId;
+  const quizIds = course.quizzes.map((q) => q.id);
 
   const pendingSubmissions = course.project
     ? await prisma.projectSubmission.findMany({
@@ -52,179 +104,225 @@ export default async function ManageCoursePage({
       })
     : [];
 
-  // Course-level analytics (Stage F3) — live queries against the same
-  // tables the learner-facing pages use, not a separate tracking system.
-  const [enrolmentCount, completedCount, quizAttempts, gradedSubmissions, certificateCount] =
-    await Promise.all([
-      prisma.enrolment.count({ where: { courseId } }),
-      prisma.enrolment.count({ where: { courseId, progressPercent: 100 } }),
-      course.quiz
-        ? prisma.quizAttempt.findMany({ where: { quizId: course.quiz.id } })
-        : Promise.resolve([]),
-      course.project
-        ? prisma.projectSubmission.findMany({
-            where: { projectId: course.project.id, status: "GRADED" },
-          })
-        : Promise.resolve([]),
-      prisma.certificate.count({ where: { courseId, status: "ACTIVE" } }),
-    ]);
+  // Course-level analytics — live queries against the same tables the
+  // learner-facing pages use, not a separate tracking system.
+  const [enrolmentCount, completedCount, quizAttempts, certificateCount] = await Promise.all([
+    prisma.enrolment.count({ where: { courseId } }),
+    prisma.enrolment.count({ where: { courseId, progressPercent: 100 } }),
+    quizIds.length
+      ? prisma.quizAttempt.findMany({
+          where: { quizId: { in: quizIds }, status: "SUBMITTED" },
+          select: { quizId: true, passed: true },
+        })
+      : Promise.resolve([]),
+    prisma.certificate.count({ where: { courseId, status: "ACTIVE" } }),
+  ]);
 
   const completionRate = enrolmentCount > 0 ? Math.round((completedCount / enrolmentCount) * 100) : 0;
   const quizPassRate =
     quizAttempts.length > 0
-      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-        Math.round((quizAttempts.filter((a: any) => a.passed).length / quizAttempts.length) * 100)
+      ? Math.round((quizAttempts.filter((a) => a.passed).length / quizAttempts.length) * 100)
       : null;
-  const avgProjectScore =
-    gradedSubmissions.length > 0
-      ? Math.round(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-          gradedSubmissions.reduce((sum: number, s: any) => sum + (s.score ?? 0), 0) /
-            gradedSubmissions.length,
-        )
-      : null;
+
+  const lessonOptions = course.modules.flatMap((m, mi) =>
+    m.lessons.map((l, li) => ({ id: l.id, label: `${mi + 1}.${li + 1} ${l.title}` })),
+  );
+  const mediaCountByLesson = new Map<string, number>();
+  course.media.forEach((m) => {
+    if (m.lessonId) mediaCountByLesson.set(m.lessonId, (mediaCountByLesson.get(m.lessonId) ?? 0) + 1);
+  });
 
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-display text-2xl font-bold text-ink-900">
-                {course.title}
-              </h1>
-              <Badge tone={course.status === "PUBLISHED" ? "verified" : "neutral"}>
-                {STATUS_LABEL[course.status]}
-              </Badge>
+      <main className="w-full flex-1">
+        <CourseCover title={course.title} className="text-white">
+          <div className="mx-auto max-w-5xl px-4 pb-8 pt-6">
+            <Link
+              href="/instructor/courses"
+              className="inline-flex items-center gap-1 text-sm text-white/80 hover:text-white"
+            >
+              <Icon name="chevronLeft" size={16} /> All courses
+            </Link>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium">
+                    {course.category} · {course.level}
+                  </span>
+                  <Badge tone={course.status === "PUBLISHED" ? "verified" : "neutral"}>
+                    {STATUS_LABEL[course.status]}
+                  </Badge>
+                </div>
+                <h1 className="mt-3 font-display text-3xl font-bold text-white sm:text-4xl">
+                  {course.title}
+                </h1>
+                <p className="mt-1 text-sm text-white/75">/courses/{course.slug}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href={`/instructor/courses/${course.id}/gradebook`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+                >
+                  <Icon name="chart" size={18} /> Gradebook
+                </Link>
+                {isAdmin && (course.status === "APPROVED" || course.status === "PUBLISHED") && (
+                  <div className="rounded-lg bg-white">
+                    <PublishToggle courseId={course.id} status={course.status} />
+                  </div>
+                )}
+              </div>
             </div>
-            <p className="mt-1 text-sm text-ink-500">/courses/{course.slug}</p>
           </div>
-          {isAdmin && (course.status === "APPROVED" || course.status === "PUBLISHED") && (
-            <PublishToggle courseId={course.id} status={course.status} />
-          )}
-        </div>
+        </CourseCover>
 
-        {course.status === "DRAFT" && course.reviewFeedback && (
-          <div className="mt-4">
+        <nav
+          aria-label="Course sections"
+          className="sticky top-[61px] z-30 border-b border-ink-100 bg-white/90 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 py-2 text-sm">
+            {SECTIONS.map((s) => (
+              <a
+                key={s.id}
+                href={`#${s.id}`}
+                className="shrink-0 rounded-lg px-3 py-2 font-medium text-ink-700 hover:bg-brand-50 hover:text-brand-700"
+              >
+                {s.label}
+              </a>
+            ))}
+          </div>
+        </nav>
+
+        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-8">
+          {course.status === "DRAFT" && course.reviewFeedback && (
             <Alert tone="danger" title="Changes requested by a reviewer">
               {course.reviewFeedback}
             </Alert>
-          </div>
-        )}
-
-        {isOwner && course.status === "DRAFT" && (
-          <div className="mt-4">
-            <SubmitReviewButton courseId={course.id} />
-          </div>
-        )}
-        {course.status === "UNDER_REVIEW" && (
-          <p className="mt-2 text-sm text-ink-500">Waiting for a content reviewer.</p>
-        )}
-        {course.status === "APPROVED" && !isAdmin && (
-          <p className="mt-2 text-sm text-ink-500">
-            Approved — an administrator needs to publish it before learners can see it.
-          </p>
-        )}
-
-        <section className="mt-10 border-t border-ink-100 pt-6">
-          <h2 className="font-display text-lg font-semibold text-ink-900">Analytics</h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">{enrolmentCount}</p>
-              <p className="text-xs text-ink-500">Enrolled</p>
-            </Card>
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">{completionRate}%</p>
-              <p className="text-xs text-ink-500">Completion rate</p>
-            </Card>
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">
-                {quizPassRate === null ? "—" : `${quizPassRate}%`}
-              </p>
-              <p className="text-xs text-ink-500">Quiz pass rate</p>
-            </Card>
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">{certificateCount}</p>
-              <p className="text-xs text-ink-500">Certificates issued</p>
-            </Card>
-          </div>
-          {avgProjectScore !== null && (
-            <p className="mt-3 text-sm text-ink-500">
-              Average graded project score: {avgProjectScore}%
-            </p>
           )}
-        </section>
-
-        <section className="mt-10 border-t border-ink-100 pt-6">
-          <h2 className="font-display text-lg font-semibold text-ink-900">
-            Modules &amp; lessons
-          </h2>
-          <div className="mt-4 flex flex-col gap-4">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md */}
-            {course.modules.map((moduleItem: any, index: number) => (
-              <div key={moduleItem.id} className="rounded-md border border-ink-100 p-4">
-                <p className="font-medium text-ink-900">
-                  {index + 1}. {moduleItem.title}
-                </p>
-                <ul className="mt-2 flex flex-col gap-1 text-sm text-ink-700">
-                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md */}
-                  {moduleItem.lessons.map((lesson: any) => (
-                    <li key={lesson.id}>· {lesson.title}</li>
-                  ))}
-                </ul>
-                <div className="mt-2">
-                  <AddLessonForm moduleId={moduleItem.id} />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="mt-4">
-            <AddModuleForm courseId={course.id} />
-          </div>
-        </section>
-
-        <section className="mt-10 border-t border-ink-100 pt-6">
-          <h2 className="font-display text-lg font-semibold text-ink-900">
-            Knowledge quiz
-          </h2>
-          <p className="mt-1 text-sm text-ink-500">
-            Tests understanding — separate from the practical project below,
-            which is what actually proves competency.
-          </p>
-          <div className="mt-4">
-            <QuizBuilder
-              courseId={course.id}
-              existingQuiz={
-                course.quiz
-                  ? {
-                      title: course.quiz.title,
-                      passMarkPercent: course.quiz.passMarkPercent,
-                      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-                      questions: course.quiz.questions.map((q: any) => ({
-                        prompt: q.prompt,
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-                        answers: q.answers.map((a: any) => ({
-                          text: a.text,
-                          isCorrect: a.isCorrect,
-                        })),
-                      })),
-                    }
-                  : null
-              }
+          {isOwner && course.status === "DRAFT" && (
+            <div>
+              <SubmitReviewButton courseId={course.id} />
+            </div>
+          )}
+          {course.status === "UNDER_REVIEW" && (
+            <Alert tone="info" title="Waiting for a content reviewer" />
+          )}
+          {course.status === "APPROVED" && !isAdmin && (
+            <Alert
+              tone="info"
+              title="Approved: an administrator needs to publish it before learners can see it."
             />
-          </div>
-        </section>
+          )}
 
-        <section className="mt-10 border-t border-ink-100 pt-6">
-          <h2 className="font-display text-lg font-semibold text-ink-900">
-            Practical project
-          </h2>
-          <p className="mt-1 text-sm text-ink-500">
-            A rubric-graded task the learner submits. Passing this — not the
-            quiz — is what demonstrates competency.
-          </p>
-          <div className="mt-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat icon="users" value={String(enrolmentCount)} label="Enrolled" />
+            <Stat icon="check" value={`${completionRate}%`} label="Finished all lessons" />
+            <Stat icon="quiz" value={quizPassRate === null ? "None yet" : `${quizPassRate}%`} label="Quiz attempts passed" />
+            <Stat icon="award" value={String(certificateCount)} label="Certificates issued" />
+          </div>
+
+          <Section
+            id="content"
+            title="Modules and lessons"
+            description="Each lesson can carry its own video, audio and documents. Add them in Media below."
+          >
+            <div className="flex flex-col gap-4">
+              {course.modules.map((moduleItem, index) => (
+                <div key={moduleItem.id} className="rounded-xl border border-ink-100 bg-white p-4">
+                  <p className="font-display font-semibold text-ink-900">
+                    Module {index + 1}: {moduleItem.title}
+                  </p>
+                  <ul className="mt-3 flex flex-col divide-y divide-ink-100 text-sm text-ink-700">
+                    {moduleItem.lessons.map((lesson, li) => (
+                      <li key={lesson.id} className="flex items-center justify-between gap-2 py-2">
+                        <span>
+                          <span className="tabular-nums text-ink-400">
+                            {index + 1}.{li + 1}
+                          </span>{" "}
+                          {lesson.title}
+                        </span>
+                        {(mediaCountByLesson.get(lesson.id) ?? 0) > 0 && (
+                          <span className="inline-flex items-center gap-1 text-xs text-brand-600">
+                            <Icon name="video" size={14} /> {mediaCountByLesson.get(lesson.id)} media
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-2">
+                    <AddLessonForm moduleId={moduleItem.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4">
+              <AddModuleForm courseId={course.id} />
+            </div>
+          </Section>
+
+          <Section
+            id="media"
+            title="Video, audio and documents"
+            description="Files are compressed on your device before upload, so learners on mobile data download a fraction of the original size."
+          >
+            <MediaManager
+              courseId={course.id}
+              lessons={lessonOptions}
+              media={course.media.map((m) => ({
+                id: m.id,
+                kind: m.kind,
+                title: m.title,
+                fileName: m.fileName,
+                sizeBytes: m.sizeBytes,
+                originalSizeBytes: m.originalSizeBytes,
+                durationSeconds: m.durationSeconds,
+                lessonId: m.lessonId,
+              }))}
+            />
+          </Section>
+
+          <Section
+            id="quizzes"
+            title="Quizzes"
+            description="Knowledge checks after a module or at the end of the course, graded automatically. Learners need to pass every quiz to earn the certificate."
+          >
+            <QuizzesManager
+              courseId={course.id}
+              modules={course.modules.map((m) => ({ id: m.id, title: m.title }))}
+              quizzes={course.quizzes.map((quiz) => {
+                const attempts = quizAttempts.filter((a) => a.quizId === quiz.id);
+                return {
+                  id: quiz.id,
+                  title: quiz.title,
+                  description: quiz.description ?? "",
+                  moduleId: quiz.moduleId ?? "",
+                  passMarkPercent: quiz.passMarkPercent,
+                  timeLimitMinutes: quiz.timeLimitMinutes,
+                  maxAttempts: quiz.maxAttempts,
+                  shuffleQuestions: quiz.shuffleQuestions,
+                  showAnswers: quiz.showAnswers,
+                  weight: quiz.weight,
+                  attemptCount: attempts.length,
+                  passRate: attempts.length
+                    ? Math.round((attempts.filter((a) => a.passed).length / attempts.length) * 100)
+                    : null,
+                  questions: quiz.questions.map((q) => ({
+                    type: q.type,
+                    prompt: q.prompt,
+                    points: q.points,
+                    explanation: q.explanation ?? "",
+                    answers: q.answers.map((a) => ({ text: a.text, isCorrect: a.isCorrect })),
+                  })),
+                };
+              })}
+            />
+          </Section>
+
+          <Section
+            id="project"
+            title="Practical project"
+            description="A rubric-graded task the learner submits. Passing this, not the quizzes, is what demonstrates competency."
+          >
             <ProjectBuilder
               courseId={course.id}
               existingProject={
@@ -233,22 +331,21 @@ export default async function ManageCoursePage({
                       title: course.project.title,
                       instructions: course.project.instructions,
                       rubric: course.project.rubric,
+                      weight: course.project.weight,
                     }
                   : null
               }
             />
-          </div>
-        </section>
+          </Section>
 
-        {course.project && (
-          <section className="mt-10 border-t border-ink-100 pt-6">
-            <h2 className="font-display text-lg font-semibold text-ink-900">
-              Submissions to grade
-            </h2>
-            <div className="mt-4">
+          <Section
+            id="grading"
+            title="Submissions to grade"
+            description="Course grades combine each learner's best quiz scores and their project score, using the weights you set."
+          >
+            {course.project ? (
               <SubmissionsGrader
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-                submissions={pendingSubmissions.map((s: any) => ({
+                submissions={pendingSubmissions.map((s) => ({
                   id: s.id,
                   learnerName: s.learner.fullName,
                   submissionUrl: s.submissionUrl,
@@ -256,9 +353,17 @@ export default async function ManageCoursePage({
                   submittedAt: s.submittedAt.toISOString(),
                 }))}
               />
-            </div>
-          </section>
-        )}
+            ) : (
+              <p className="text-sm text-ink-500">Add a practical project to receive submissions.</p>
+            )}
+            <Link
+              href={`/instructor/courses/${course.id}/gradebook`}
+              className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-600 hover:underline"
+            >
+              Open the gradebook <Icon name="arrowRight" size={16} />
+            </Link>
+          </Section>
+        </div>
       </main>
     </>
   );

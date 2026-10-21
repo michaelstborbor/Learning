@@ -16,7 +16,7 @@ export default async function ReviewQueuePage() {
     include: {
       instructor: { select: { fullName: true } },
       modules: { include: { lessons: true } },
-      quiz: true,
+      quizzes: { select: { id: true } },
       project: true,
     },
     orderBy: { updatedAt: "asc" },
@@ -37,11 +37,9 @@ export default async function ReviewQueuePage() {
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-4">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md */}
-            {courses.map((course: any) => {
+            {courses.map((course) => {
               const lessonCount = course.modules.reduce(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-                (sum: number, m: any) => sum + m.lessons.length,
+                (sum, m) => sum + m.lessons.length,
                 0,
               );
               return (
@@ -54,10 +52,11 @@ export default async function ReviewQueuePage() {
                   <p className="text-sm text-ink-500">
                     {course.category} · {course.level} · {course.modules.length} modules ·{" "}
                     {lessonCount} lessons
-                    {course.quiz && " · has quiz"}
+                    {course.quizzes.length > 0 &&
+                      ` · ${course.quizzes.length} quiz${course.quizzes.length === 1 ? "" : "zes"}`}
                     {course.project && " · has project"}
                   </p>
-                  {!course.quiz && !course.project && (
+                  {course.quizzes.length === 0 && !course.project && (
                     <p className="text-sm text-danger-500">
                       No quiz or project — this course can&apos;t certify anyone yet.
                     </p>

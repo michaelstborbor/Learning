@@ -14,7 +14,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 // Never use more than one "primary" button in the same view.
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-action-500 text-white hover:bg-action-600 focus-visible:outline-action-600",
+    "bg-action-500 text-white shadow-[0_6px_16px_-8px_rgb(194_65_12/0.7)] hover:bg-action-600 focus-visible:outline-action-600",
   secondary:
     "bg-white text-brand-600 border border-brand-400 hover:bg-brand-50 focus-visible:outline-brand-400",
   ghost:
@@ -32,7 +32,7 @@ export function Button({
   return (
     <button
       className={clsx(
-        "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition-colors",
+        "inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[background-color,scale,box-shadow] duration-150 active:scale-[0.98]",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
         "disabled:cursor-not-allowed disabled:opacity-50",
         variantClasses[variant],

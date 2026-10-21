@@ -12,7 +12,7 @@ export function MobileNavToggle({ children }: { children: React.ReactNode }) {
         aria-label="Toggle navigation menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center justify-center rounded-md p-2 text-ink-700 hover:bg-brand-50"
+        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink-700 hover:bg-brand-50"
       >
         {open ? (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -25,9 +25,10 @@ export function MobileNavToggle({ children }: { children: React.ReactNode }) {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-60 rounded-md border border-brand-100 bg-white p-4 shadow-lg">
+        <div className="rise-in absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-brand-100 bg-white p-2 shadow-overlay">
           <nav
-            className="flex flex-col gap-4 text-base text-ink-700"
+            aria-label="Main"
+            className="flex flex-col gap-1 text-base text-ink-700"
             onClick={() => setOpen(false)}
           >
             {children}

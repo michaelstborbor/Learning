@@ -2,13 +2,51 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { maybeIssueCertificate } from "@/lib/certificates";
-import { gradeQuiz } from "@/lib/grading";
+import {
+  finalizeAttempt,
+  isPastDeadline,
+  loadQuizWithQuestions,
+  responsesSchema,
+  reviewForLearner,
+} from "@/lib/quiz";
 
 const attemptSchema = z.object({
-  // Map of questionId -> chosen answerId
-  answers: z.record(z.string(), z.string()),
+  attemptId: z.string(),
+  // Map of questionId -> chosen answer id(s) or short-answer text.
+  answers: responsesSchema,
 });
+
+async function loadOwnAttempt(quizId: string, attemptId: string, learnerId: string) {
+  const attempt = await prisma.quizAttempt.findUnique({ where: { id: attemptId } });
+  if (!attempt || attempt.quizId !== quizId || attempt.learnerId !== learnerId) return null;
+  return attempt;
+}
+
+// Autosave while the attempt is in progress, so a dropped connection or an
+// expired timer never loses what the learner already answered.
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ quizId: string }> },
+) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+
+  const { quizId } = await params;
+  const parsed = attemptSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: "Invalid submission." }, { status: 400 });
+
+  const attempt = await loadOwnAttempt(quizId, parsed.data.attemptId, session.userId);
+  if (!attempt) return NextResponse.json({ error: "Attempt not found." }, { status: 404 });
+  if (attempt.status !== "IN_PROGRESS" || isPastDeadline(attempt)) {
+    return NextResponse.json({ error: "This attempt has already ended." }, { status: 409 });
+  }
+
+  await prisma.quizAttempt.update({
+    where: { id: attempt.id },
+    data: { responses: parsed.data.answers },
+  });
+  return NextResponse.json({ ok: true });
+}
 
 export async function POST(
   request: Request,
@@ -20,49 +58,42 @@ export async function POST(
   }
 
   const { quizId } = await params;
-  const quiz = await prisma.quiz.findUnique({
-    where: { id: quizId },
-    include: { questions: { include: { answers: true } }, course: true },
-  });
+  const quiz = await loadQuizWithQuestions(quizId);
   if (!quiz) return NextResponse.json({ error: "Quiz not found." }, { status: 404 });
 
-  const enrolment = await prisma.enrolment.findUnique({
-    where: {
-      learnerId_courseId: { learnerId: session.userId, courseId: quiz.courseId },
-    },
-  });
-  if (!enrolment) {
-    return NextResponse.json(
-      { error: "You need to enrol in this course first." },
-      { status: 403 },
-    );
-  }
-
-  const body = await request.json().catch(() => null);
-  const parsed = attemptSchema.safeParse(body);
+  const parsed = attemptSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid submission." }, { status: 400 });
   }
 
+  const attempt = await loadOwnAttempt(quizId, parsed.data.attemptId, session.userId);
+  if (!attempt) return NextResponse.json({ error: "Attempt not found." }, { status: 404 });
+
   // Grading happens entirely server-side against the stored correct
   // answers — the client only ever sends which option it picked, never a
-  // score. This is the same "never trust the frontend" rule the payments
-  // architecture uses, applied to assessments. The actual rule lives in
-  // gradeQuiz() (src/lib/grading.ts) so it's unit-tested directly, not
-  // only exercised indirectly through this route.
-  const { scorePercent, passed } = gradeQuiz(
-    quiz.questions,
-    parsed.data.answers,
-    quiz.passMarkPercent,
-  );
+  // score. A submission after the deadline (plus a short grace period)
+  // only counts what was autosaved in time; see finalizeAttempt().
+  const final =
+    attempt.status === "SUBMITTED"
+      ? attempt
+      : await finalizeAttempt(quiz, attempt, parsed.data.answers);
 
-  const attempt = await prisma.quizAttempt.create({
-    data: { quizId, learnerId: session.userId, scorePercent, passed },
+  const submittedCount = await prisma.quizAttempt.count({
+    where: { quizId, learnerId: session.userId, status: "SUBMITTED" },
   });
 
-  if (passed) {
-    await maybeIssueCertificate(session.userId, quiz.courseId);
-  }
-
-  return NextResponse.json(attempt, { status: 201 });
+  return NextResponse.json(
+    {
+      id: final.id,
+      scorePercent: final.scorePercent,
+      pointsEarned: final.pointsEarned,
+      pointsPossible: final.pointsPossible,
+      passed: final.passed,
+      lateSubmission: isPastDeadline(attempt),
+      attemptsRemaining:
+        quiz.maxAttempts === null ? null : Math.max(0, quiz.maxAttempts - submittedCount),
+      review: reviewForLearner(final.review, quiz.showAnswers),
+    },
+    { status: 201 },
+  );
 }

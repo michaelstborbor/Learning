@@ -10,6 +10,7 @@ interface ExistingProject {
   title: string;
   instructions: string;
   rubric: string;
+  weight: number;
 }
 
 export function ProjectBuilder({
@@ -24,6 +25,7 @@ export function ProjectBuilder({
   const [instructions, setInstructions] = useState(existingProject?.instructions ?? "");
   const [rubric, setRubric] = useState(existingProject?.rubric ?? "");
   const [skillName, setSkillName] = useState("");
+  const [weight, setWeight] = useState(existingProject?.weight ?? 2);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -41,6 +43,7 @@ export function ProjectBuilder({
           instructions,
           rubric,
           skillName: skillName || undefined,
+          weight,
         }),
       });
       const data = await res.json();
@@ -56,7 +59,7 @@ export function ProjectBuilder({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-md border border-ink-100 p-4">
+    <div className="flex flex-col gap-4 rounded-xl border border-ink-100 bg-white p-4">
       {error && <Alert tone="danger" title={error} />}
       {saved && <Alert tone="success" title="Project saved" />}
 
@@ -68,7 +71,7 @@ export function ProjectBuilder({
         </label>
         <textarea
           id="instructions"
-          className="min-h-24 rounded-md border border-ink-300 px-3 py-2 text-sm outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100"
+          className="min-h-24 rounded-lg border border-ink-300 px-3 py-2 text-base outline-none sm:text-sm focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100"
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
         />
@@ -80,7 +83,7 @@ export function ProjectBuilder({
         </label>
         <textarea
           id="rubric"
-          className="min-h-24 rounded-md border border-ink-300 px-3 py-2 text-sm outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100"
+          className="min-h-24 rounded-lg border border-ink-300 px-3 py-2 text-base outline-none sm:text-sm focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100"
           value={rubric}
           onChange={(e) => setRubric(e.target.value)}
         />
@@ -95,7 +98,19 @@ export function ProjectBuilder({
         />
       )}
 
-      <Button type="button" onClick={handleSave} disabled={saving}>
+      <div className="max-w-48">
+        <Field
+          id="projectWeight"
+          label="Weight in course grade"
+          type="number"
+          min={0}
+          max={100}
+          value={weight}
+          onChange={(e) => setWeight(Number(e.target.value))}
+        />
+      </div>
+
+      <Button type="button" className="w-fit" onClick={handleSave} disabled={saving}>
         {saving ? "Saving…" : "Save project"}
       </Button>
     </div>
