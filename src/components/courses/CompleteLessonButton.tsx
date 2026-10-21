@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { Icon } from "@/components/ui/Icon";
 
 export function CompleteLessonButton({
   lessonId,
@@ -30,9 +31,9 @@ export function CompleteLessonButton({
 
   if (done) {
     return (
-      <Button variant="ghost" disabled>
-        ✓ Lesson complete
-      </Button>
+      <p className="rise-in inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-50 px-4 text-sm font-semibold text-brand-700" role="status">
+        <Icon name="check" size={18} /> Lesson complete
+      </p>
     );
   }
 

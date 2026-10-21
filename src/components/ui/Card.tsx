@@ -5,12 +5,13 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-// Restraint principle: thin border, one radius, no drop-shadow soup.
+// Restraint principle: thin border, one radius, one soft brand-tinted
+// elevation step (--shadow-raised). No stacked shadows.
 export function Card({ className, children, ...props }: CardProps) {
   return (
     <div
       className={clsx(
-        "rounded-lg border border-ink-100 bg-white p-5",
+        "rounded-xl border border-ink-100 bg-white p-5 shadow-raised",
         className,
       )}
       {...props}

@@ -15,7 +15,7 @@ export function Field({ label, error, id, className, ...props }: FieldProps) {
       <input
         id={id}
         className={clsx(
-          "rounded-md border px-3 py-2 text-sm text-ink-900 outline-none transition-colors",
+          "min-h-11 rounded-lg border bg-white px-3 py-2 text-base text-ink-900 outline-none transition-colors sm:text-sm",
           "focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100",
           error ? "border-danger-500" : "border-ink-300",
           className,
