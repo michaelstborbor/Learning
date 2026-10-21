@@ -46,6 +46,22 @@ sequence, so it gets one real numbered/step visual treatment
 device in the product. It belongs on the homepage hero and on course-progress
 views. It should not be used decoratively elsewhere.
 
+## Brand device: the signal
+
+The broadcast arcs in the Elite Network logo are the one recurring motif:
+concentric rings on dark teal hero bands (`.signal-field`), generated course
+covers (`CourseCover`), progress rings (`ProgressRing`), and the animated
+logo on the login and get-started pages (`AnimatedLogo`, pure CSS, disabled
+under reduced motion). It replaces decoration everywhere else.
+
+## Elevation and motion
+
+Cards carry one soft, teal-tinted shadow (`shadow-raised`); menus and
+floating panels use `shadow-overlay`. Motion uses two easing tokens
+(`--ease-out`, `--ease-spring`) and is reserved for responses to the
+learner: the logo sequence, a quiz score ring filling, a small burst on a
+pass.
+
 ## Components
 
 All in `src/components/ui/`. See `/style-guide` in the running app for a live,
@@ -55,7 +71,12 @@ current reference — it renders the real components, not a mockup.
 |---|---|
 | `Button` | `primary` (ochre) reserved for the one most important action per screen |
 | `Badge` | `verified` tone reserved for demonstrated competency only |
-| `Card` | Thin border, one radius, no drop-shadow |
+| `Card` | Thin border, one radius, one soft tinted shadow |
+| `Icon` | Inline stroke icons (one family, 24px grid) |
+| `ProgressRing` | Circular progress; brand for content, verified only for competency |
+| `CourseCover` | Generated per-course cover art, no image downloads |
+| `AnimatedLogo` | Sign-in pages only |
+| `Footer` | Secondary links (about, FAQs, verify, legal) |
 | `Alert` | `info` / `success` / `danger` |
 | `ProgressBar` | Always brand colour — progress through content, not a competency signal |
 | `EmptyState` | Always includes an action, never a dead end |

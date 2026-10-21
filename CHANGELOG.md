@@ -4,6 +4,28 @@ Stage-by-stage record of what was built, per the phased development approach
 in `PHASE0_BLUEPRINT.md`. Each stage's full detail lives in `ARCHITECTURE.md`;
 this is a scannable summary.
 
+## Learning experience upgrade — UI, media, quizzes and grading
+- **Course media.** Instructors and admins can attach video, audio and
+  documents to any lesson or to the course as a whole. Files are compressed
+  in the uploader's browser before upload (video to 720p H.264/AAC MP4 or
+  VP9/Opus WebM, audio to AAC/Opus, text documents gzipped), then stored in
+  an S3-compatible bucket or on local disk (`src/lib/storage.ts`). Learners
+  get native players with seeking and downloads; access is checked on every
+  request.
+- **Quizzes and grading.** Several quizzes per course (after a module, or
+  final), four question types with points, partial credit for multiple
+  answers, explanations, time limits enforced on the server, attempt limits,
+  shuffled questions, autosave, and an answer review after submitting. A
+  gradebook (with CSV export) weights each learner's best quiz scores and
+  project score into a course grade and letter; learners see the same on a
+  new Grades page. Certificates now need every quiz passed.
+- **UI.** New home page, catalogue, course and learning pages built around
+  the logo's "signal" arcs; dashboard with a learning streak, weekly goal and
+  a one-tap "continue" card; animated logo on the login and get-started
+  pages; active states in the navigation; a footer.
+- **Fixes.** `GET /api/courses/[courseId]` no longer exposes quiz answers;
+  the Render build now creates the database tables (`prisma db push`).
+
 ## Stage F6 — SEO, Deployment, Backups & Production Readiness Audit
 Sitemap and robots.txt (dynamic, reflecting real published content), page
 metadata and Open Graph tags on every public page, JSON-LD structured data

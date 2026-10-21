@@ -98,14 +98,32 @@ the Blueprint doesn't cover (like choosing a specific region).
 4. **Environment:** Node
 5. Add every environment variable from step 2 in the service's Environment
    tab.
-6. **Run migrations on deploy.** Render supports a "Pre-Deploy Command" —
-   set it to `npx prisma migrate deploy`, so every deploy automatically
-   applies any new migrations before the new code goes live. (If your Render
-   plan/version doesn't expose a pre-deploy command, run
-   `npx prisma migrate deploy` manually via Render's shell after each deploy
-   that includes a schema change — but the pre-deploy hook is strongly
-   preferred so this step can't be forgotten.)
-7. Deploy. Render builds and starts the service; watch the build logs for
+6. **Sync the database schema on deploy.** The build command in
+   `render.yaml` runs `npx prisma db push --skip-generate`, which creates or
+   updates tables to match `prisma/schema.prisma`. (This repository has no
+   `prisma/migrations` folder, so the earlier `prisma migrate deploy` step
+   never created any tables.) `db push` stops with an error rather than
+   drop data, so a destructive schema change can't slip through a deploy.
+   If you later adopt migrations, baseline first with
+   `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script`
+   and `npx prisma migrate resolve --applied <name>`.
+7. **Course media storage.** Uploaded videos, audio and documents must live
+   in an S3-compatible bucket in production, because Render's free web
+   services lose their disk on every deploy. Cloudflare R2 has a free tier
+   and no download (egress) fees, which suits video:
+   1. In Cloudflare, create an R2 bucket (e.g. `eliteskills-media`).
+   2. Create an R2 API token with *Object Read & Write* on that bucket only.
+   3. Set `STORAGE_S3_ENDPOINT` (`https://<account-id>.r2.cloudflarestorage.com`),
+      `STORAGE_S3_BUCKET`, `STORAGE_S3_ACCESS_KEY_ID` and
+      `STORAGE_S3_SECRET_ACCESS_KEY` on the web service.
+   4. Add a CORS rule on the bucket so browsers can upload directly:
+      ```json
+      [{ "AllowedOrigins": ["https://your-domain"], "AllowedMethods": ["PUT", "GET"],
+         "AllowedHeaders": ["Content-Type", "Content-Encoding"], "MaxAgeSeconds": 3600 }]
+      ```
+   The bucket stays private: learners get short-lived signed links only
+   after the app checks they're enrolled.
+8. Deploy. Render builds and starts the service; watch the build logs for
    the first deploy specifically, since this is also the first time
    `npx prisma generate` will run with real network access — see
    `ARCHITECTURE.md`'s "Known sandbox limitation" for why that matters: this
