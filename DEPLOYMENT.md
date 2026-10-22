@@ -141,6 +141,24 @@ string, and some database drivers choke on that unless it's rewritten to
 `postgresql://`. Prisma accepts both schemes natively — nothing to fix on
 that front for this app.
 
+## Railway
+
+`railway.json` configures a Railway service from the repo:
+
+- **Build:** `npx prisma generate && npm run build`.
+- **Pre-deploy:** `npx prisma db push --skip-generate` creates or updates the
+  database tables before each new version starts. This runs after the build,
+  on Railway's private network, so a `*.railway.internal` `DATABASE_URL`
+  works. If it fails (for example, a change that would lose data), Railway
+  keeps the previous version running and shows the error in the deploy log.
+- **Start:** `npm run start`. Next.js reads Railway's `PORT` on its own.
+
+In the service's **Settings**, check that **Source** points at this repository
+and the `main` branch, so merges deploy automatically. Add the variables from
+section 2 under **Variables**, with `DATABASE_URL` referencing the Railway
+Postgres service (`${{Postgres.DATABASE_URL}}`). Railway has no persistent disk
+by default, so set the `STORAGE_S3_*` variables for course media as well.
+
 ## 6. Seed data (optional, recommended for a first demo)
 
 Once the web service is live and migrations have run:
