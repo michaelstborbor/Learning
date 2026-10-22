@@ -328,9 +328,14 @@ model ProjectSubmission {
   project       Project          @relation(fields: [projectId], references: [id])
   learnerId     String
   learner       User             @relation("LearnerSubmissions", fields: [learnerId], references: [id])
-  // A link (e.g. to a Google Doc, Sheet, or hosted file) rather than an
-  // uploaded file — no object storage exists yet (see ARCHITECTURE.md).
-  submissionUrl String
+  // A link (e.g. to a Google Doc or Sheet), an uploaded spreadsheet
+  // (.xlsx, .xls or .csv, see src/lib/submission-files.ts), or both. At
+  // least one is always set.
+  submissionUrl String?
+  fileKey       String?
+  fileName      String?
+  fileSize      Int?
+  fileType      String?
   notes         String?
   status        SubmissionStatus @default(PENDING)
   score         Int?

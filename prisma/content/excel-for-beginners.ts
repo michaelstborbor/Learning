@@ -711,7 +711,7 @@ Set your shop list to landscape, fit all columns on one page, add a page number 
 9. Set the page to landscape, fit all columns on one page, and save a copy as a PDF.
 
 What to submit
-Upload your workbook to OneDrive or Google Drive, set the link so anyone with it can view, and paste the link below. In the notes box, write two or three sentences about what your tracker shows about the month's sales.`,
+Save your workbook and upload it below with the Upload your project button (.xlsx, .xls or .csv). If you keep it in OneDrive or Google Drive instead, you can paste a view link. In the notes box, write two or three sentences about what your tracker shows about the month's sales.`,
     rubric: `Pass (all of these are needed):
 - At least 15 sales with all five headings, entered one sale per row
 - A working Total formula in every row (Price times Quantity), not typed-in numbers

@@ -6,12 +6,14 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { Icon } from "@/components/ui/Icon";
 import { safeHref } from "@/lib/validation";
 
 interface PendingSubmission {
   id: string;
   learnerName: string;
-  submissionUrl: string;
+  submissionUrl: string | null;
+  fileName: string | null;
   notes: string | null;
   submittedAt: string;
 }
@@ -63,14 +65,27 @@ function GradeCard({ submission }: { submission: PendingSubmission }) {
         <p className="font-medium text-ink-900">{submission.learnerName}</p>
         <Badge tone="brand">Pending</Badge>
       </div>
-      <a
-        href={safeHref(submission.submissionUrl)}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-1 block text-sm text-brand-600 hover:underline"
-      >
-        View submission
-      </a>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {submission.fileName && (
+          <a
+            href={`/api/submissions/${submission.id}/file`}
+            className="inline-flex items-center gap-1.5 text-brand-600 hover:underline"
+          >
+            <Icon name="download" size={16} />
+            <span className="break-all">Download {submission.fileName}</span>
+          </a>
+        )}
+        {safeHref(submission.submissionUrl) && (
+          <a
+            href={safeHref(submission.submissionUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-600 hover:underline"
+          >
+            View link
+          </a>
+        )}
+      </div>
       {submission.notes && (
         <p className="mt-1 text-sm text-ink-500">Note: {submission.notes}</p>
       )}

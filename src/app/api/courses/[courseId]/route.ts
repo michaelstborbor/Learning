@@ -152,6 +152,11 @@ export async function DELETE(
     );
   }
 
+  const submissionFiles = await prisma.projectSubmission.findMany({
+    where: { project: { courseId }, fileKey: { not: null } },
+    select: { fileKey: true },
+  });
+
   // Rows that don't cascade from the course are removed first, all in one
   // transaction, so a failure leaves the course exactly as it was.
   await prisma.$transaction(async (tx) => {
@@ -174,7 +179,11 @@ export async function DELETE(
 
   // Stored files go last: if one can't be removed now, the course is still
   // gone and the file is simply orphaned in storage.
-  const keys = [...course.media.map((m) => m.storageKey), ...(course.posterKey ? [course.posterKey] : [])];
+  const keys = [
+    ...course.media.map((m) => m.storageKey),
+    ...(course.posterKey ? [course.posterKey] : []),
+    ...submissionFiles.flatMap((s) => (s.fileKey ? [s.fileKey] : [])),
+  ];
   const results = await Promise.allSettled(keys.map((key) => deleteStored(key)));
   results.forEach((result, i) => {
     if (result.status === "rejected") console.error("Couldn't delete stored file", keys[i], result.reason);
