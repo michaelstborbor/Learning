@@ -37,6 +37,7 @@ model User {
   id             String    @id @default(cuid())
   email          String    @unique
   passwordHash   String
+  // Printed word for word on certificates; edited on the profile page.
   fullName       String
   role           UserRole  @default(LEARNER)
   isActive       Boolean   @default(true)
@@ -64,8 +65,26 @@ model User {
   attendanceRecords   AttendanceRecord[]
   applications        Application[]
   tutorMessages       TutorMessage[]
+  profile             Profile?
 
   @@map("users")
+}
+
+// Optional profile details, edited on /account/profile (rules in
+// src/lib/profile.ts). A table of its own so the unique username could be
+// added without touching existing users rows.
+model Profile {
+  userId          String    @id
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  username        String?   @unique
+  phone           String?
+  location        String?
+  bio             String?
+  avatarKey       String?
+  avatarUpdatedAt DateTime?
+  updatedAt       DateTime  @updatedAt
+
+  @@map("profiles")
 }
 
 // ---------------------------------------------------------------------

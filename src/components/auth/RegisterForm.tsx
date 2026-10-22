@@ -55,7 +55,7 @@ export function RegisterForm({
       <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4" noValidate>
         <Field
           id="fullName"
-          label="Full name"
+          label="Full name, exactly as it should appear on your certificates"
           type="text"
           autoComplete="name"
           value={fullName}

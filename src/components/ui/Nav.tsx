@@ -1,7 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/db";
+import { avatarUrl } from "@/lib/profile";
 import { COURSE_AUTHOR_ROLES, PUBLISH_ROLES, REVIEWER_ROLES } from "@/lib/roles";
+import { AccountMenu } from "./AccountMenu";
 import { MobileNavToggle } from "./MobileNavToggle";
 import { MouseEffects } from "./MouseEffects";
 import { NavLinks, type NavItem } from "./NavLinks";
@@ -16,6 +19,12 @@ export async function Nav() {
   const isReviewer = session ? REVIEWER_ROLES.includes(session.role) : false;
   const isContentReviewerOnly = session?.role === "CONTENT_REVIEWER";
   const isLearnerNav = session && !isInstructor && !isOrganization && !isContentReviewerOnly;
+  const account = session
+    ? await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { fullName: true, email: true, profile: { select: { avatarUpdatedAt: true } } },
+      })
+    : null;
 
   // Kept to a handful per role; secondary pages (verify, about, help) live
   // in the footer so the bar stays scannable.
@@ -66,13 +75,13 @@ export async function Nav() {
         </nav>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {session ? (
-            <Link
-              href="/account"
-              className="inline-flex min-h-10 items-center rounded-lg bg-action-500 px-3 py-2 text-sm font-semibold text-white hover:bg-action-600 sm:px-4"
-            >
-              My account
-            </Link>
+          {session && account ? (
+            <AccountMenu
+              fullName={account.fullName}
+              email={account.email}
+              avatarUrl={avatarUrl(session.userId, account.profile?.avatarUpdatedAt)}
+              showCertificates={Boolean(isLearnerNav)}
+            />
           ) : (
             <>
               <Link

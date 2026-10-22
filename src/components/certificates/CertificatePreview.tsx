@@ -126,11 +126,20 @@ export async function CertificatePreview({
           <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 500, fontSize: pt(18), color: "#334155", marginTop: pt(14) }}>
             This is to certify that
           </p>
+          {/* The full name word for word, as on the PDF: it shrinks, then
+              wraps onto two lines, but is never cut short. */}
           <p
-            className="max-w-[72cqw] truncate"
-            style={{ fontFamily: serif, fontWeight: 600, fontSize: pt(learnerName.length > 34 ? 34 : 46), color: "#0b3b38", lineHeight: 1.15, marginTop: pt(8) }}
+            className="max-w-[74cqw] text-balance break-words"
+            style={{
+              fontFamily: serif,
+              fontWeight: 600,
+              fontSize: pt(learnerName.length > 52 ? 26 : learnerName.length > 34 ? 34 : 46),
+              color: "#0b3b38",
+              lineHeight: 1.1,
+              marginTop: pt(8),
+            }}
           >
-            {learnerName}
+            {learnerName.trim()}
           </p>
           <span className="block" style={{ width: pt(440), height: pt(0.8), background: "#5eead4", marginTop: pt(4) }} />
           <p style={{ fontFamily: serif, fontStyle: "italic", fontWeight: 500, fontSize: pt(18), color: "#334155", marginTop: pt(10) }}>

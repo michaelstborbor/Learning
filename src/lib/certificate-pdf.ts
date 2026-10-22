@@ -1,11 +1,10 @@
 import "server-only";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import fontkit from "@pdf-lib/fontkit";
 import { PDFDocument, degrees, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import QRCode from "qrcode";
 import { formatCertificateDate } from "@/lib/certificate-format";
+import { CERTIFICATE_FONTS, certificateAsset } from "@/lib/certificate-fonts";
 
 // Draws the certificate of completion as a one-page A4 (landscape) PDF.
 // Everything is vector except the sponsor logo, so it prints sharply at
@@ -47,40 +46,73 @@ const C = {
   white: rgb(1, 1, 1),
 };
 
-const ASSETS = path.join(process.cwd(), "assets", "certificate");
+// A face is one font, or a font plus fallbacks tried in order for any
+// character the first can't draw.
+type Face = PDFFont | PDFFont[];
 
-async function asset(...parts: string[]) {
-  return readFile(/*turbopackIgnore: true*/ path.join(ASSETS, ...parts));
+const characterSets = new WeakMap<PDFFont, Set<number>>();
+function supports(font: PDFFont, codePoint: number): boolean {
+  let set = characterSets.get(font);
+  if (!set) {
+    set = new Set(font.getCharacterSet());
+    characterSets.set(font, set);
+  }
+  return set.has(codePoint);
 }
 
-/** Drops characters the font can't draw, so an unusual name never breaks
- * the PDF. */
-function drawable(font: PDFFont, text: string): string {
-  const supported = new Set(font.getCharacterSet());
-  return [...text].map((ch) => (supported.has(ch.codePointAt(0)!) ? ch : "?")).join("");
+/** Splits text into runs, each set in the first font of the face that has
+ * its characters. Names are checked before they are saved (see
+ * certificate-fonts.ts), so the "?" stand-in is only a last resort that
+ * keeps the PDF from failing. */
+function runs(face: Face, text: string): { font: PDFFont; text: string }[] {
+  const fonts = Array.isArray(face) ? face : [face];
+  const out: { font: PDFFont; text: string }[] = [];
+  for (const ch of text) {
+    const codePoint = ch.codePointAt(0)!;
+    const font = fonts.find((f) => supports(f, codePoint));
+    const piece = font ? ch : "?";
+    const use = font ?? fonts[0];
+    const last = out.at(-1);
+    if (last && last.font === use) last.text += piece;
+    else out.push({ font: use, text: piece });
+  }
+  return out;
 }
 
-function centered(page: PDFPage, text: string, y: number, font: PDFFont, size: number, color: RGB) {
-  const width = font.widthOfTextAtSize(text, size);
-  page.drawText(text, { x: (W - width) / 2, y, size, font, color });
+function widthOf(face: Face, text: string, size: number): number {
+  return runs(face, text).reduce((sum, run) => sum + run.font.widthOfTextAtSize(run.text, size), 0);
+}
+
+function drawRuns(page: PDFPage, face: Face, text: string, x: number, y: number, size: number, color: RGB) {
+  let cursor = x;
+  for (const run of runs(face, text)) {
+    page.drawText(run.text, { x: cursor, y, size, font: run.font, color });
+    cursor += run.font.widthOfTextAtSize(run.text, size);
+  }
+}
+
+function centered(page: PDFPage, text: string, y: number, face: Face, size: number, color: RGB) {
+  drawRuns(page, face, text, (W - widthOf(face, text, size)) / 2, y, size, color);
 }
 
 /** Largest size from `max` down to `min` at which the text fits `width`. */
-function fitSize(font: PDFFont, text: string, max: number, min: number, width: number): number {
+function fitSize(face: Face, text: string, max: number, min: number, width: number): number {
   let size = max;
-  while (size > min && font.widthOfTextAtSize(text, size) > width) size -= 0.5;
+  while (size > min && widthOf(face, text, size) > width) size -= 0.5;
   return size;
 }
 
-/** Splits text into at most two lines that each fit `width`. */
-function twoLines(font: PDFFont, text: string, size: number, width: number): string[] {
-  if (font.widthOfTextAtSize(text, size) <= width) return [text];
-  const words = text.split(/\s+/);
+/** Splits text at a space into at most two lines that each fit `width`.
+ * Only the line break changes: every word and character is kept. */
+function twoLines(face: Face, text: string, size: number, width: number): string[] {
+  if (widthOf(face, text, size) <= width) return [text];
+  const words = text.split(" ");
   let best: string[] = [text];
   let bestWidth = Infinity;
   for (let i = 1; i < words.length; i++) {
     const lines = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
-    const widest = Math.max(...lines.map((l) => font.widthOfTextAtSize(l, size)));
+    if (!lines[0] || !lines[1]) continue;
+    const widest = Math.max(...lines.map((l) => widthOf(face, l, size)));
     if (widest < bestWidth) {
       best = lines;
       bestWidth = widest;
@@ -192,8 +224,10 @@ async function drawQr(page: PDFPage, text: string, x: number, y: number, size: n
 
 interface Fonts {
   serif: PDFFont;
+  serifFace: PDFFont[];
   serifItalic: PDFFont;
   label: PDFFont;
+  labelFace: PDFFont[];
   body: PDFFont;
   bodyBold: PDFFont;
 }
@@ -202,25 +236,41 @@ export async function renderCertificatePdf(input: CertificatePdfInput): Promise<
   const doc = await PDFDocument.create();
   doc.registerFontkit(fontkit);
 
-  const [serifBytes, serifItalicBytes, labelBytes, bodyBytes, bodyBoldBytes, logoBytes] = await Promise.all([
-    asset("fonts", "cormorant-garamond-latin-600-normal.woff"),
-    asset("fonts", "cormorant-garamond-latin-500-italic.woff"),
-    asset("fonts", "space-grotesk-latin-600-normal.woff"),
-    asset("fonts", "inter-latin-400-normal.woff"),
-    asset("fonts", "inter-latin-600-normal.woff"),
-    asset("elite-network-limited.png"),
+  // Embeds a face's main font, then each fallback only when `text` has
+  // characters the fonts before it lack. pdf-lib's subsetter drops Noto
+  // Serif's glyphs, so that (.ttf) fallback is embedded whole, which is
+  // why it is only added to certificates that need it.
+  const embed = async (files: readonly string[], text = "") => {
+    const face: PDFFont[] = [];
+    for (const [i, file] of files.entries()) {
+      const missing = [...text].some((ch) => ch.trim() && !face.some((f) => supports(f, ch.codePointAt(0)!)));
+      if (i > 0 && !missing) break;
+      face.push(await doc.embedFont(await certificateAsset("fonts", file), { subset: !file.endsWith(".ttf") }));
+    }
+    return face;
+  };
+  const [serifFace, [serifItalic], labelFace, [body], [bodyBold], logoBytes] = await Promise.all([
+    embed(CERTIFICATE_FONTS.serif, `${input.learnerName}ESA`),
+    embed(CERTIFICATE_FONTS.serifItalic),
+    embed(CERTIFICATE_FONTS.label, input.courseTitle),
+    embed(CERTIFICATE_FONTS.body),
+    embed(CERTIFICATE_FONTS.bodyBold),
+    certificateAsset("elite-network-limited.png"),
   ]);
   const fonts: Fonts = {
-    serif: await doc.embedFont(serifBytes, { subset: true }),
-    serifItalic: await doc.embedFont(serifItalicBytes, { subset: true }),
-    label: await doc.embedFont(labelBytes, { subset: true }),
-    body: await doc.embedFont(bodyBytes, { subset: true }),
-    bodyBold: await doc.embedFont(bodyBoldBytes, { subset: true }),
+    serif: serifFace[0],
+    serifFace,
+    serifItalic,
+    label: labelFace[0],
+    labelFace,
+    body,
+    bodyBold,
   };
   const logo = await doc.embedPng(logoBytes);
 
-  const name = drawable(fonts.serif, input.learnerName.trim());
-  const course = drawable(fonts.label, input.courseTitle.trim());
+  // The learner's full name exactly as saved on their profile.
+  const name = input.learnerName.trim();
+  const course = input.courseTitle.trim();
   const date = formatCertificateDate(input.completedAt);
 
   doc.setTitle(`Certificate of Completion: ${input.courseTitle}`);
@@ -254,16 +304,24 @@ export async function renderCertificatePdf(input: CertificatePdfInput): Promise<
 
   centered(page, "This is to certify that", 408, fonts.serifItalic, 18, C.ink700);
 
-  const nameSize = fitSize(fonts.serif, name, 46, 24, 600);
-  centered(page, name, 358, fonts.serif, nameSize, C.brand900);
-  page.drawLine({ start: { x: W / 2 - 220, y: 346 }, end: { x: W / 2 + 220, y: 346 }, thickness: 0.8, color: C.brand300 });
+  // A very long name moves onto two lines rather than shrinking too far.
+  const nameFits = fitSize(fonts.serifFace, name, 46, 26, 620);
+  const nameLines = twoLines(fonts.serifFace, name, nameFits, 620);
+  const nameSize = nameLines.length === 1 ? nameFits : Math.min(nameFits, 26);
+  if (nameLines.length === 1) {
+    centered(page, name, 358, fonts.serifFace, nameSize, C.brand900);
+  } else {
+    nameLines.forEach((line, i) => centered(page, line, 380 - i * 28, fonts.serifFace, nameSize, C.brand900));
+  }
+  const ruleY = nameLines.length === 1 ? 346 : 342;
+  page.drawLine({ start: { x: W / 2 - 220, y: ruleY }, end: { x: W / 2 + 220, y: ruleY }, thickness: 0.8, color: C.brand300 });
 
   centered(page, "has successfully completed the course", 318, fonts.serifItalic, 18, C.ink700);
 
-  const courseSize = fitSize(fonts.label, course, 24, 17, 620);
-  const courseLines = twoLines(fonts.label, course, courseSize, 620);
+  const courseSize = fitSize(fonts.labelFace, course, 24, 17, 620);
+  const courseLines = twoLines(fonts.labelFace, course, courseSize, 620);
   const courseTop = courseLines.length === 1 ? 282 : 290;
-  courseLines.forEach((line, i) => centered(page, line, courseTop - i * (courseSize + 4), fonts.label, courseSize, C.brand700));
+  courseLines.forEach((line, i) => centered(page, line, courseTop - i * (courseSize + 4), fonts.labelFace, courseSize, C.brand700));
 
   centered(page, `Completed on ${date}`, courseLines.length === 1 ? 250 : 238, fonts.body, 11.5, C.ink500);
 

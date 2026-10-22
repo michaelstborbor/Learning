@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { fullNameSchema } from "@/lib/profile";
 
 // Upper bounds on every field keep a single request from storing (or
 // hashing) megabytes of text.
@@ -8,7 +9,8 @@ export const passwordSchema = z
   .max(128, "Password must be at most 128 characters.");
 
 export const registerSchema = z.object({
-  fullName: z.string().trim().min(2, "Enter your full name.").max(120, "That name is too long."),
+  // The same rules as the profile page: this name is printed on certificates.
+  fullName: fullNameSchema,
   email: z.string().trim().toLowerCase().max(254, "That email is too long.").email("Enter a valid email address."),
   password: passwordSchema,
 });

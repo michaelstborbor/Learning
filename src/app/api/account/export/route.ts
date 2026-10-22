@@ -30,7 +30,15 @@ export async function GET() {
   ] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, fullName: true, email: true, role: true, emailVerified: true, createdAt: true },
+      select: {
+        id: true,
+        fullName: true,
+        email: true,
+        role: true,
+        emailVerified: true,
+        createdAt: true,
+        profile: { select: { username: true, phone: true, location: true, bio: true, avatarUpdatedAt: true } },
+      },
     }),
     prisma.enrolment.findMany({
       where: { learnerId: userId },
