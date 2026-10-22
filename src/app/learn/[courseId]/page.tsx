@@ -13,6 +13,8 @@ import { getCourseGrades, type GradeItem } from "@/lib/gradebook";
 import { coursePosterUrl } from "@/lib/course-poster";
 import { TutorLauncher } from "@/components/tutor/TutorLauncher";
 import { CompleteModuleButton } from "@/components/courses/CompleteModuleButton";
+import { CertificateStatusCard } from "@/components/certificates/CertificateStatusCard";
+import { CERTIFICATE_PASS_PERCENT, certificateEligibility } from "@/lib/certificate-eligibility";
 
 function QuizRow({
   courseId,
@@ -86,8 +88,15 @@ export default async function LearnCoursePage({
   if (!course) notFound();
   if (!enrolment) redirect(`/courses/${course.slug}`);
 
-  const { grades } = await getCourseGrades(courseId, [session.userId]);
+  const [{ grades }, certificate] = await Promise.all([
+    getCourseGrades(courseId, [session.userId]),
+    prisma.certificate.findUnique({
+      where: { learnerId_courseId: { learnerId: session.userId, courseId } },
+      select: { id: true, status: true },
+    }),
+  ]);
   const grade = grades.get(session.userId);
+  const eligibility = certificateEligibility(grade, enrolment.progressPercent);
   const itemFor = (id: string) => grade?.items.find((i) => i.id === id);
 
   const allLessons = course.modules.flatMap((m) => m.lessons);
@@ -218,7 +227,8 @@ export default async function LearnCoursePage({
               <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-raised sm:p-5">
                 <h2 className="font-display text-lg font-semibold text-ink-900">Final assessments</h2>
                 <p className="mt-1 text-sm text-ink-500">
-                  Pass {finalQuizzes.length + course.quizzes.filter((q) => q.moduleId).length > 1 ? "every quiz" : "the quiz"}
+                  Get a course grade of {CERTIFICATE_PASS_PERCENT}% or more across{" "}
+                  {course.quizzes.length > 1 ? "every quiz" : "the quiz"}
                   {course.project ? " and the practical project" : ""} to earn your certificate.
                 </p>
                 <div className="mt-4 flex flex-col gap-2">
@@ -249,6 +259,8 @@ export default async function LearnCoursePage({
           </div>
 
           <aside className="flex flex-col gap-6">
+            <CertificateStatusCard courseId={courseId} eligibility={eligibility} certificate={certificate} />
+
             {grade && grade.items.length > 0 && (
               <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-raised">
                 <div className="flex items-center justify-between">

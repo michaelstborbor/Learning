@@ -49,6 +49,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   // Don't advertise the framework in an X-Powered-By header.
   poweredByHeader: false,
+  // Fonts and the sponsor logo are read from disk when a certificate PDF
+  // is drawn (src/lib/certificate-pdf.ts), so ship them with that route.
+  outputFileTracingIncludes: {
+    "/api/certificates/*/pdf": ["./assets/certificate/**/*"],
+  },
   // BOT_PROTECTION=off switches Vercel BotID off in the browser too (see
   // src/instrumentation-client.ts); the server reads BOT_PROTECTION directly.
   env: {
