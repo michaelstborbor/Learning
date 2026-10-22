@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canUpdateCourseContent } from "@/lib/permissions";
 import { storageDriver } from "@/lib/storage";
 
 // Hands the browser a one-off token for uploading one registered file
@@ -22,10 +22,10 @@ export async function POST(
   const { mediaId } = await params;
   const media = await prisma.courseMedia.findUnique({
     where: { id: mediaId },
-    include: { course: { select: { instructorId: true } } },
+    include: { course: { select: { instructorId: true, status: true } } },
   });
   if (!media) return NextResponse.json({ error: "Upload not found." }, { status: 404 });
-  if (!canManageCourse(session, media.course.instructorId)) {
+  if (!canUpdateCourseContent(session, media.course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
   if (media.status !== "UPLOADING") {

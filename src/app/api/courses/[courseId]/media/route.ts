@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canUpdateCourseContent } from "@/lib/permissions";
 import { createUploadTarget, maxUploadBytes } from "@/lib/storage";
 import { formatBytes, isAllowedType, safeFileName } from "@/lib/media";
 import { MAX_TRANSCRIPT_CHARS, cleanTranscript } from "@/lib/transcript";
@@ -45,7 +45,7 @@ export async function POST(
   const { courseId } = await params;
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
-  if (!canManageCourse(session, course.instructorId)) {
+  if (!canUpdateCourseContent(session, course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 

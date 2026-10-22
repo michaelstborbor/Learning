@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
-
-const lessonSchema = z.object({
-  title: z.string().trim().min(2, "Give the lesson a title.").max(200, "Keep the title under 200 characters."),
-  content: z.string().trim().min(10, "Lesson content is too short.").max(100000, "Lesson content is too long. Split it into two lessons."),
-});
+import { lessonSchema } from "@/lib/course-content";
+import { canUpdateCourseContent } from "@/lib/permissions";
+import { writeAuditLog } from "@/lib/audit-log";
+import { recomputeCourseProgress } from "@/lib/progress";
 
 export async function POST(
   request: Request,
@@ -24,7 +21,7 @@ export async function POST(
   if (!courseModule) {
     return NextResponse.json({ error: "Module not found." }, { status: 404 });
   }
-  if (!canManageCourse(session, courseModule.course.instructorId)) {
+  if (!canUpdateCourseContent(session, courseModule.course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 
@@ -46,6 +43,16 @@ export async function POST(
       content: parsed.data.content,
       order: lessonCount,
     },
+  });
+
+  // Learners already enrolled now have one more lesson to finish.
+  await recomputeCourseProgress(courseModule.courseId);
+  await writeAuditLog({
+    actorId: session.userId,
+    action: "COURSE_LESSON_ADDED",
+    targetType: "Course",
+    targetId: courseModule.courseId,
+    notes: `"${courseModule.course.title}": added lesson "${created.title}" to "${courseModule.title}"`,
   });
 
   return NextResponse.json(created, { status: 201 });

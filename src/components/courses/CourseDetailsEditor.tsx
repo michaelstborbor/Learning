@@ -17,7 +17,16 @@ interface CourseDetails {
   posterUrl: string | null;
 }
 
-export function CourseDetailsEditor({ course, posterFailed }: { course: CourseDetails; posterFailed?: boolean }) {
+export function CourseDetailsEditor({
+  course,
+  posterFailed,
+  titleLocked,
+}: {
+  course: CourseDetails;
+  posterFailed?: boolean;
+  // Certificates print the course title, so it can't change once issued.
+  titleLocked?: boolean;
+}) {
   const router = useRouter();
   const initial = splitMinutes(course.totalMinutes);
   const [title, setTitle] = useState(course.title);
@@ -46,7 +55,7 @@ export function CourseDetailsEditor({ course, posterFailed }: { course: CourseDe
       const res = await fetch(`/api/courses/${course.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, category, level, durationMinutes }),
+        body: JSON.stringify({ ...(!titleLocked && { title }), description, category, level, durationMinutes }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "Your changes couldn't be saved.");
@@ -72,7 +81,23 @@ export function CourseDetailsEditor({ course, posterFailed }: { course: CourseDe
       {status && <Alert tone={status.tone} title={status.text} />}
       <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,22rem)]">
         <div className="flex flex-col gap-4">
-          <Field id="edit-title" label="Course title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <div className="flex flex-col gap-1.5">
+            <Field
+              id="edit-title"
+              label="Course title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              required
+              disabled={titleLocked}
+              className="disabled:cursor-not-allowed disabled:bg-ink-50 disabled:text-ink-500"
+              aria-describedby={titleLocked ? "edit-title-locked" : undefined}
+            />
+            {titleLocked && (
+              <p id="edit-title-locked" className="text-xs text-ink-500">
+                Learners already hold certificates that name this course, so the title stays as it is.
+              </p>
+            )}
+          </div>
           <Field
             id="edit-description"
             label="Short description"

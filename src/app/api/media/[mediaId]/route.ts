@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canUpdateCourseContent } from "@/lib/permissions";
+import { writeAuditLog } from "@/lib/audit-log";
 import {
   boundedRange,
   deleteStored,
@@ -133,15 +134,24 @@ export async function DELETE(
   const { mediaId } = await params;
   const media = await prisma.courseMedia.findUnique({
     where: { id: mediaId },
-    include: { course: { select: { instructorId: true } } },
+    include: { course: { select: { instructorId: true, status: true, title: true } } },
   });
   if (!media) return NextResponse.json({ error: "File not found." }, { status: 404 });
-  if (!canManageCourse(session, media.course.instructorId)) {
+  if (!canUpdateCourseContent(session, media.course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 
   await deleteStored(media.storageKey);
   await prisma.courseMedia.delete({ where: { id: media.id } });
+  if (media.status === "READY") {
+    await writeAuditLog({
+      actorId: session.userId,
+      action: "COURSE_MEDIA_REMOVED",
+      targetType: "Course",
+      targetId: media.courseId,
+      notes: `"${media.course.title}": removed ${media.kind.toLowerCase()} "${media.title}"`,
+    });
+  }
   return NextResponse.json({ ok: true });
 }
 
@@ -166,10 +176,10 @@ export async function PATCH(
   const { mediaId } = await params;
   const media = await prisma.courseMedia.findUnique({
     where: { id: mediaId },
-    include: { course: { select: { instructorId: true } } },
+    include: { course: { select: { instructorId: true, status: true } } },
   });
   if (!media) return NextResponse.json({ error: "File not found." }, { status: 404 });
-  if (!canManageCourse(session, media.course.instructorId)) {
+  if (!canUpdateCourseContent(session, media.course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 

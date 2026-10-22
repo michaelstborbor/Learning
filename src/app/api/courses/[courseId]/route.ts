@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canManageCourse, canUpdateCourseContent } from "@/lib/permissions";
 import { hoursFromMinutes } from "@/lib/course-duration";
 import { deleteStored } from "@/lib/storage";
 import { writeAuditLog } from "@/lib/audit-log";
@@ -61,9 +61,12 @@ export async function PATCH(
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Not authorized." }, { status: 403 });
 
-  const course = await prisma.course.findUnique({ where: { id: courseId } });
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    include: { _count: { select: { certificates: true } } },
+  });
   if (!course) return NextResponse.json({ error: "Course not found." }, { status: 404 });
-  if (!canManageCourse(session, course.instructorId)) {
+  if (!canUpdateCourseContent(session, course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 
@@ -76,6 +79,16 @@ export async function PATCH(
     );
   }
 
+  // Certificates print the course title, so once one is issued the title
+  // stays as it was: a learner's certificate must keep saying exactly what
+  // they earned.
+  if (parsed.data.title !== undefined && parsed.data.title !== course.title && course._count.certificates > 0) {
+    return NextResponse.json(
+      { error: "Learners already hold certificates for this course, so its title can't change." },
+      { status: 409 },
+    );
+  }
+
   const updated = await prisma.course.update({
     where: { id: courseId },
     data: {
@@ -83,6 +96,19 @@ export async function PATCH(
       ...(parsed.data.durationMinutes && { estimatedHours: hoursFromMinutes(parsed.data.durationMinutes) }),
     },
   });
+
+  const changed = (Object.keys(parsed.data) as (keyof typeof parsed.data)[])
+    .filter((key) => parsed.data[key] !== course[key])
+    .map((key) => (key === "durationMinutes" || key === "estimatedHours" ? "duration" : key));
+  if (changed.length > 0) {
+    await writeAuditLog({
+      actorId: session.userId,
+      action: "COURSE_UPDATED",
+      targetType: "Course",
+      targetId: courseId,
+      notes: `"${updated.title}": changed ${[...new Set(changed)].join(", ")}`,
+    });
+  }
 
   return NextResponse.json(updated);
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canUpdateCourseContent } from "@/lib/permissions";
 import { storageDriver, writeLocal } from "@/lib/storage";
 
 // Receives the file bytes when media is stored on the server's own disk
@@ -20,10 +20,10 @@ export async function PUT(
   const { mediaId } = await params;
   const media = await prisma.courseMedia.findUnique({
     where: { id: mediaId },
-    include: { course: { select: { instructorId: true } } },
+    include: { course: { select: { instructorId: true, status: true } } },
   });
   if (!media) return NextResponse.json({ error: "Upload not found." }, { status: 404 });
-  if (!canManageCourse(session, media.course.instructorId)) {
+  if (!canUpdateCourseContent(session, media.course)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
   if (media.status !== "UPLOADING") {
