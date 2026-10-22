@@ -4,6 +4,7 @@ import { Nav } from "@/components/ui/Nav";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Icon } from "@/components/ui/Icon";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES } from "@/lib/roles";
@@ -52,29 +53,41 @@ export default async function InstructorCoursesPage() {
         ) : (
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {courses.map((course) => (
-              <Link
+              <div
                 key={course.id}
-                href={`/instructor/courses/${course.id}`}
                 data-fx="card"
                 className="flex flex-col overflow-hidden rounded-xl border border-ink-100 bg-white shadow-raised"
               >
-                <CourseCover
-                  title={course.title}
-                  posterUrl={coursePosterUrl(course)}
-                  className="flex aspect-[2/1] items-start justify-end p-3"
-                >
-                  <Badge tone={course.status === "PUBLISHED" ? "verified" : "neutral"}>
-                    {STATUS_LABEL[course.status] ?? course.status}
-                  </Badge>
-                </CourseCover>
-                <div className="flex flex-1 flex-col gap-1 p-4">
-                  <p className="font-display font-semibold text-ink-900">{course.title}</p>
-                  <p className="text-xs text-ink-500">
-                    {isAdmin ? `by ${course.instructor.fullName} · ` : ""}
-                    {course.category} · {formatCourseDuration(course)}
-                  </p>
-                </div>
-              </Link>
+                <Link href={`/instructor/courses/${course.id}`} className="flex flex-1 flex-col">
+                  <CourseCover
+                    title={course.title}
+                    posterUrl={coursePosterUrl(course)}
+                    className="flex aspect-[2/1] items-start justify-end p-3"
+                  >
+                    <Badge tone={course.status === "PUBLISHED" ? "verified" : "neutral"}>
+                      {STATUS_LABEL[course.status] ?? course.status}
+                    </Badge>
+                  </CourseCover>
+                  <div className="flex flex-1 flex-col gap-1 p-4">
+                    <p className="font-display font-semibold text-ink-900">{course.title}</p>
+                    <p className="text-xs text-ink-500">
+                      {isAdmin ? `by ${course.instructor.fullName} · ` : ""}
+                      {course.category} · {formatCourseDuration(course)}
+                    </p>
+                  </div>
+                </Link>
+                {course.status === "PUBLISHED" && (
+                  <div className="border-t border-ink-100 px-2 py-1">
+                    <Link
+                      href={`/instructor/courses/${course.id}/update`}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                    >
+                      <Icon name="pencil" size={16} /> Update course
+                      <span className="sr-only">: {course.title}</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

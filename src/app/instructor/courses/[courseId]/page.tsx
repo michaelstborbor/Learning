@@ -7,8 +7,8 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import { CourseCover } from "@/components/ui/CourseCover";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
-import { AddModuleForm, AddLessonForm } from "@/components/courses/ModuleLessonForms";
+import { canManageCourse, canUpdateCourseContent } from "@/lib/permissions";
+import { CourseOutline } from "@/components/courses/CourseOutline";
 import { QuizzesManager } from "@/components/courses/QuizzesManager";
 import { MediaManager } from "@/components/courses/MediaManager";
 import { ProjectBuilder } from "@/components/courses/ProjectBuilder";
@@ -98,7 +98,10 @@ export default async function ManageCoursePage({
     },
   });
   if (!course) notFound();
-  if (!canManageCourse(session, course.instructorId)) redirect("/instructor/courses");
+  if (!canManageCourse(session, course.instructorId)) {
+    // Content reviewers can update a published course, so send them there.
+    redirect(canUpdateCourseContent(session, course) ? `/instructor/courses/${course.id}/update` : "/instructor/courses");
+  }
 
   const isAdmin = session.role === "PLATFORM_ADMIN" || session.role === "SUPER_ADMIN";
   const isOwner = session.userId === course.instructorId;
@@ -177,6 +180,14 @@ export default async function ManageCoursePage({
                 <p className="mt-1 text-sm text-white/75">/courses/{course.slug}</p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
+                {course.status === "PUBLISHED" && (
+                  <Link
+                    href={`/instructor/courses/${course.id}/update`}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50"
+                  >
+                    <Icon name="pencil" size={18} /> Update course
+                  </Link>
+                )}
                 <Link
                   href={`/instructor/courses/${course.id}/gradebook`}
                   className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50"
@@ -251,6 +262,7 @@ export default async function ManageCoursePage({
           >
             <CourseDetailsEditor
               posterFailed={poster === "failed"}
+              titleLocked={issuedCertificates > 0}
               course={{
                 id: course.id,
                 title: course.title,
@@ -268,38 +280,7 @@ export default async function ManageCoursePage({
             title="Modules and lessons"
             description="Each lesson can carry its own video, audio and documents. Add them in Media below."
           >
-            <div className="flex flex-col gap-4">
-              {course.modules.map((moduleItem, index) => (
-                <div key={moduleItem.id} className="rounded-xl border border-ink-100 bg-white p-4">
-                  <p className="font-display font-semibold text-ink-900">
-                    Module {index + 1}: {moduleItem.title}
-                  </p>
-                  <ul className="mt-3 flex flex-col divide-y divide-ink-100 text-sm text-ink-700">
-                    {moduleItem.lessons.map((lesson, li) => (
-                      <li key={lesson.id} className="flex items-center justify-between gap-2 py-2">
-                        <span>
-                          <span className="tabular-nums text-ink-400">
-                            {index + 1}.{li + 1}
-                          </span>{" "}
-                          {lesson.title}
-                        </span>
-                        {(mediaCountByLesson.get(lesson.id) ?? 0) > 0 && (
-                          <span className="inline-flex items-center gap-1 text-xs text-brand-600">
-                            <Icon name="video" size={14} /> {mediaCountByLesson.get(lesson.id)} media
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-2">
-                    <AddLessonForm moduleId={moduleItem.id} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <AddModuleForm courseId={course.id} />
-            </div>
+            <CourseOutline courseId={course.id} modules={course.modules} mediaCountByLesson={mediaCountByLesson} />
           </Section>
 
           <Section
@@ -328,7 +309,7 @@ export default async function ManageCoursePage({
           <Section
             id="quizzes"
             title="Quizzes"
-            description="Knowledge checks after a module or at the end of the course, graded automatically. Learners need to pass every quiz to earn the certificate."
+            description="Knowledge checks after a module or at the end of the course, graded automatically. Quiz scores count toward the course grade, and learners need a course grade of at least 70% to earn the certificate."
           >
             <QuizzesManager
               courseId={course.id}

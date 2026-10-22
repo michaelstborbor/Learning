@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { canManageCourse } from "@/lib/permissions";
+import { canManageCourse, canUpdateCourseContent } from "@/lib/permissions";
 import { deleteStored, putObject, readObject } from "@/lib/storage";
 import { coursePosterUrl } from "@/lib/course-poster";
 import { IMAGE_EXTENSION, imageType } from "@/lib/image-type";
@@ -18,7 +18,7 @@ async function managedCourse(courseId: string) {
   if (!session) return { error: NextResponse.json({ error: "Not authorized." }, { status: 403 }) };
   const course = await prisma.course.findUnique({ where: { id: courseId } });
   if (!course) return { error: NextResponse.json({ error: "Course not found." }, { status: 404 }) };
-  if (!canManageCourse(session, course.instructorId)) {
+  if (!canUpdateCourseContent(session, course)) {
     return { error: NextResponse.json({ error: "Not authorized." }, { status: 403 }) };
   }
   return { course };

@@ -40,3 +40,39 @@ export async function markLessonsComplete(learnerId: string, courseId: string, l
 
   return enrolment;
 }
+
+// Brings every enrolled learner's progress in line after lessons are added
+// to a course, so a learner who had finished every lesson sees the new one
+// as still to do. Lessons they already completed stay completed, and
+// certificates already issued are not touched.
+export async function recomputeCourseProgress(courseId: string) {
+  const [totalLessons, enrolments, completed] = await Promise.all([
+    prisma.lesson.count({ where: { module: { courseId } } }),
+    prisma.enrolment.findMany({
+      where: { courseId },
+      select: { learnerId: true, progressPercent: true, completedAt: true },
+    }),
+    prisma.lessonProgress.groupBy({
+      by: ["learnerId"],
+      where: { lesson: { module: { courseId } } },
+      _count: { _all: true },
+    }),
+  ]);
+  const completedBy = new Map(completed.map((row) => [row.learnerId, row._count._all]));
+
+  for (const enrolment of enrolments) {
+    // A learner who hasn't completed a lesson here has nothing to recount.
+    const done = completedBy.get(enrolment.learnerId);
+    if (done === undefined) continue;
+    const progressPercent = totalLessons > 0 ? Math.round((done / totalLessons) * 100) : 0;
+    if (progressPercent === enrolment.progressPercent) continue;
+    await prisma.enrolment.update({
+      where: { learnerId_courseId: { learnerId: enrolment.learnerId, courseId } },
+      data: {
+        progressPercent,
+        completedAt: progressPercent === 100 ? (enrolment.completedAt ?? new Date()) : null,
+      },
+    });
+    if (progressPercent === 100) await maybeIssueCertificate(enrolment.learnerId, courseId);
+  }
+}

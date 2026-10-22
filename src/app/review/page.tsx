@@ -6,6 +6,9 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { REVIEWER_ROLES } from "@/lib/roles";
 import { ReviewDecisionPanel } from "@/components/courses/ReviewDecisionPanel";
+import Link from "next/link";
+import { Icon } from "@/components/ui/Icon";
+import { formatCourseDuration } from "@/lib/course-duration";
 
 export default async function ReviewQueuePage() {
   const session = await requireRole(REVIEWER_ROLES);
@@ -20,6 +23,22 @@ export default async function ReviewQueuePage() {
       project: true,
     },
     orderBy: { updatedAt: "asc" },
+  });
+
+  // Live courses reviewers can keep up to date (see canUpdateCourseContent).
+  const publishedCourses = await prisma.course.findMany({
+    where: { status: "PUBLISHED" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      durationMinutes: true,
+      estimatedHours: true,
+      updatedAt: true,
+      instructor: { select: { fullName: true } },
+      _count: { select: { modules: true, enrolments: true } },
+    },
+    orderBy: { title: "asc" },
   });
 
   return (
@@ -67,6 +86,48 @@ export default async function ReviewQueuePage() {
             })}
           </div>
         )}
+
+        <section aria-labelledby="published-title" className="mt-12">
+          <h2 id="published-title" className="font-display text-xl font-semibold text-ink-900">
+            Published courses
+          </h2>
+          <p className="mt-1 text-sm text-ink-500">
+            Update a live course&apos;s details and duration, its modules and lessons, or its media.
+          </p>
+          {publishedCourses.length === 0 ? (
+            <p className="mt-4 text-sm text-ink-500">No courses are published yet.</p>
+          ) : (
+            <ul className="mt-4 flex flex-col divide-y divide-ink-100 rounded-xl border border-ink-100 bg-white">
+              {publishedCourses.map((course) => (
+                <li key={course.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="break-words font-medium text-ink-900">{course.title}</p>
+                    <p className="text-xs text-ink-500">
+                      by {course.instructor.fullName} · {course._count.modules} module
+                      {course._count.modules === 1 ? "" : "s"} · {formatCourseDuration(course)} ·{" "}
+                      {course._count.enrolments} enrolled
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link
+                      href={`/courses/${course.slug}`}
+                      className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink-700 hover:bg-ink-100"
+                    >
+                      View<span className="sr-only"> {course.title}</span>
+                    </Link>
+                    <Link
+                      href={`/instructor/courses/${course.id}/update`}
+                      className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-brand-400 bg-white px-3 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                    >
+                      <Icon name="pencil" size={16} /> Update course
+                      <span className="sr-only">: {course.title}</span>
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </main>
     </>
   );

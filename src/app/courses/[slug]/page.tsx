@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Nav } from "@/components/ui/Nav";
 import { Badge } from "@/components/ui/Badge";
 import { Icon, type IconName } from "@/components/ui/Icon";
@@ -7,6 +8,7 @@ import { CourseCover } from "@/components/ui/CourseCover";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { EnrolButton } from "@/components/courses/EnrolButton";
+import { canUpdateCourseContent } from "@/lib/permissions";
 import { formatCourseDuration, isoCourseDuration } from "@/lib/course-duration";
 import { coursePosterUrl } from "@/lib/course-poster";
 
@@ -113,6 +115,14 @@ export default async function CourseDetailPage({
                   alreadyEnrolled={alreadyEnrolled}
                 />
               </div>
+              {session && canUpdateCourseContent(session, course) && (
+                <Link
+                  href={`/instructor/courses/${course.id}/update`}
+                  className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-brand-400 bg-white px-4 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+                >
+                  <Icon name="pencil" size={18} /> Update course
+                </Link>
+              )}
             </div>
           </div>
         </CourseCover>

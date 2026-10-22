@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { Icon } from "@/components/ui/Icon";
 
 export function AddModuleForm({ courseId }: { courseId: string }) {
   const router = useRouter();
@@ -35,14 +36,16 @@ export function AddModuleForm({ courseId }: { courseId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
       {error && <Alert tone="danger" title={error} />}
-      <div className="flex-1">
-        <Field id="moduleTitle" label="New module title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <Field id="moduleTitle" label="New module title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+        </div>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Adding…" : "Add module"}
+        </Button>
       </div>
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Adding…" : "Add module"}
-      </Button>
     </form>
   );
 }
@@ -112,6 +115,185 @@ export function AddLessonForm({ moduleId }: { moduleId: string }) {
           {submitting ? "Saving…" : "Save lesson"}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Shared by the rename and edit forms below: sends a PATCH and reports the
+// API's own error message, so the editor sees exactly what to fix.
+async function patchJson(url: string, body: unknown): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    return data.error ?? "Your changes couldn't be saved.";
+  } catch {
+    return "Your changes couldn't be saved. Check your connection and try again.";
+  }
+}
+
+export function ModuleTitleEditor({ moduleId, number, title }: { moduleId: string; number: number; title: string }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState(title);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const message = await patchJson(`/api/modules/${moduleId}`, { title: value });
+    setSubmitting(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setOpen(false);
+    router.refresh();
+  }
+
+  if (!open) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="font-display font-semibold text-ink-900">
+          Module {number}: {title}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setValue(title);
+            setError(null);
+            setOpen(true);
+          }}
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-brand-600 hover:bg-brand-50"
+        >
+          <Icon name="pencil" size={16} /> Rename<span className="sr-only"> module {number}</span>
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+      {error && <Alert tone="danger" title={error} />}
+      <Field
+        id={`moduleTitle-${moduleId}`}
+        label={`Module ${number} title`}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        required
+      />
+      <div className="flex gap-2">
+        <Button type="submit" variant="secondary" disabled={submitting}>
+          {submitting ? "Saving…" : "Save title"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+export function LessonEditor({
+  lessonId,
+  number,
+  title,
+  content,
+  mediaCount,
+}: {
+  lessonId: string;
+  number: string;
+  title: string;
+  content: string;
+  mediaCount: number;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [titleValue, setTitleValue] = useState(title);
+  const [contentValue, setContentValue] = useState(content);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setSubmitting(true);
+    setError(null);
+    const message = await patchJson(`/api/lessons/${lessonId}`, { title: titleValue, content: contentValue });
+    setSubmitting(false);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setOpen(false);
+    router.refresh();
+  }
+
+  if (!open) {
+    return (
+      <div className="flex items-center justify-between gap-2 py-1">
+        <span className="min-w-0 break-words">
+          <span className="tabular-nums text-ink-400">{number}</span> {title}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {mediaCount > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs text-brand-600">
+              <Icon name="video" size={14} /> {mediaCount} media
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setTitleValue(title);
+              setContentValue(content);
+              setError(null);
+              setOpen(true);
+            }}
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-medium text-brand-600 hover:bg-brand-50"
+          >
+            <Icon name="pencil" size={16} /> Edit<span className="sr-only"> lesson {number}</span>
+          </button>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="my-2 flex flex-col gap-3 rounded-md border border-ink-100 p-3">
+      {error && <Alert tone="danger" title={error} />}
+      <Field
+        id={`editLessonTitle-${lessonId}`}
+        label={`Lesson ${number} title`}
+        value={titleValue}
+        onChange={(e) => setTitleValue(e.target.value)}
+        required
+      />
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={`editLessonContent-${lessonId}`} className="text-sm font-medium text-ink-700">
+          Lesson text
+        </label>
+        <textarea
+          id={`editLessonContent-${lessonId}`}
+          className="min-h-64 rounded-md border border-ink-300 px-3 py-2 text-base text-ink-900 outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100 sm:text-sm"
+          value={contentValue}
+          onChange={(e) => setContentValue(e.target.value)}
+          required
+        />
+        <p className="text-xs text-ink-500">Line breaks show exactly as you type them. Video, audio and documents are added in Media.</p>
+      </div>
+      <div className="flex gap-2">
+        <Button type="submit" variant="secondary" disabled={submitting}>
+          {submitting ? "Saving…" : "Save lesson"}
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>
           Cancel
         </Button>
       </div>
