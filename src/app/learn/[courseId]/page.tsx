@@ -12,6 +12,7 @@ import { getSession } from "@/lib/auth";
 import { getCourseGrades, type GradeItem } from "@/lib/gradebook";
 import { coursePosterUrl } from "@/lib/course-poster";
 import { TutorLauncher } from "@/components/tutor/TutorLauncher";
+import { CompleteModuleButton } from "@/components/courses/CompleteModuleButton";
 
 function QuizRow({
   courseId,
@@ -199,6 +200,14 @@ export default async function LearnCoursePage({
                       {moduleQuizzes.map((quiz) => (
                         <QuizRow key={quiz.id} courseId={courseId} quiz={quiz} item={itemFor(quiz.id)} />
                       ))}
+                    </div>
+                  )}
+                  {moduleItem.lessons.length > 0 && (
+                    <div className="mt-4 border-t border-ink-100 pt-4">
+                      <CompleteModuleButton
+                        moduleId={moduleItem.id}
+                        alreadyComplete={done === moduleItem.lessons.length}
+                      />
                     </div>
                   )}
                 </section>

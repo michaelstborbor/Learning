@@ -7,6 +7,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CompleteLessonButton } from "@/components/courses/CompleteLessonButton";
+import { CompleteModuleButton } from "@/components/courses/CompleteModuleButton";
 import { LessonMedia } from "@/components/courses/MediaPlayer";
 import { TutorLauncher } from "@/components/tutor/TutorLauncher";
 
@@ -139,6 +140,26 @@ export default async function LessonPage({
           <div className="mt-6 max-w-[68ch] whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-ink-700">
             {lesson.content}
           </div>
+
+          {isLastInModule && (
+            <section
+              aria-labelledby="module-end-title"
+              className="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-4 sm:px-5"
+            >
+              <div>
+                <h2 id="module-end-title" className="font-display text-base font-semibold text-ink-900">
+                  End of module: {currentModule.title}
+                </h2>
+                <p className="text-sm text-ink-500">
+                  {currentModule.lessons.filter((l) => completedIds.has(l.id)).length} of {currentModule.lessons.length} lessons done
+                </p>
+              </div>
+              <CompleteModuleButton
+                moduleId={currentModule.id}
+                alreadyComplete={currentModule.lessons.every((l) => completedIds.has(l.id))}
+              />
+            </section>
+          )}
 
           <div className="sticky bottom-0 z-20 -mx-4 mt-10 border-t border-ink-100 bg-white/95 px-4 py-3 backdrop-blur sm:static sm:mx-0 sm:rounded-2xl sm:border sm:px-5 sm:py-4 sm:shadow-raised">
             <div className="flex flex-wrap items-center justify-between gap-3">
