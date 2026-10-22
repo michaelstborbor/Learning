@@ -208,13 +208,11 @@ export function LessonEditor({
   number,
   title,
   content,
-  mediaCount,
 }: {
   lessonId: string;
   number: string;
   title: string;
   content: string;
-  mediaCount: number;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -244,11 +242,6 @@ export function LessonEditor({
           <span className="tabular-nums text-ink-400">{number}</span> {title}
         </span>
         <span className="flex shrink-0 items-center gap-2">
-          {mediaCount > 0 && (
-            <span className="inline-flex items-center gap-1 text-xs text-brand-600">
-              <Icon name="video" size={14} /> {mediaCount} media
-            </span>
-          )}
           <button
             type="button"
             onClick={() => {

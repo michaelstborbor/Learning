@@ -55,10 +55,16 @@ export default async function LessonPage({
   const isLastInModule = currentModule.lessons.at(-1)?.id === lesson.id;
   const moduleQuiz = isLastInModule ? currentModule.quizzes[0] : undefined;
 
-  const media = await prisma.courseMedia.findMany({
-    where: { lessonId, status: "READY" },
-    orderBy: { createdAt: "asc" },
-  });
+  const [media, moduleMedia] = await Promise.all([
+    prisma.courseMedia.findMany({
+      where: { lessonId, status: "READY" },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.courseMedia.findMany({
+      where: { moduleId: lesson.moduleId, status: "READY" },
+      orderBy: { createdAt: "asc" },
+    }),
+  ]);
 
   return (
     <>
@@ -135,6 +141,20 @@ export default async function LessonPage({
             <div className="mt-6">
               <LessonMedia media={media} />
             </div>
+          )}
+
+          {/* Shared by every lesson in the module, so it starts folded away. */}
+          {moduleMedia.length > 0 && (
+            <details className="group mt-6 rounded-2xl border border-ink-100 bg-white">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm font-semibold text-ink-900">
+                <Icon name="video" size={18} className="text-brand-600" />
+                Video and audio for this module ({moduleMedia.length})
+                <Icon name="chevronRight" size={16} className="ml-auto transition-transform group-open:rotate-90" />
+              </summary>
+              <div className="px-4 pb-4">
+                <LessonMedia media={moduleMedia} />
+              </div>
+            </details>
           )}
 
           <div className="mt-6 max-w-[68ch] whitespace-pre-wrap text-[1.0625rem] leading-relaxed text-ink-700">

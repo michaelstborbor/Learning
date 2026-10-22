@@ -51,6 +51,7 @@ export async function courseContext(courseId: string): Promise<{ title: string; 
       modules: {
         orderBy: { order: "asc" },
         select: {
+          id: true,
           title: true,
           lessons: { orderBy: { order: "asc" }, select: { id: true, title: true, content: true } },
           quizzes: { select: { title: true } },
@@ -59,7 +60,7 @@ export async function courseContext(courseId: string): Promise<{ title: string; 
       media: {
         where: { status: "READY" },
         orderBy: { createdAt: "asc" },
-        select: { kind: true, title: true, lessonId: true, transcript: true, transcriptLanguage: true },
+        select: { kind: true, title: true, lessonId: true, moduleId: true, transcript: true, transcriptLanguage: true },
       },
       project: { select: { title: true, instructions: true } },
     },
@@ -70,7 +71,8 @@ export async function courseContext(courseId: string): Promise<{ title: string; 
     `<course title="${attr(course.title)}" category="${attr(course.category)}" level="${attr(course.level)}">`,
     course.description,
   ];
-  const mediaFor = (lessonId: string | null) => course.media.filter((m) => m.lessonId === lessonId);
+  const mediaFor = (lessonId: string | null) =>
+    course.media.filter((m) => m.lessonId === lessonId && (lessonId !== null || m.moduleId === null));
   const describeMedia = (m: (typeof course.media)[number]) => {
     if (m.kind === "DOCUMENT") return `<document title="${attr(m.title)}" />`;
     const kind = m.kind === "VIDEO" ? "video" : "audio";
@@ -87,6 +89,7 @@ export async function courseContext(courseId: string): Promise<{ title: string; 
       mediaFor(lesson.id).forEach((m) => parts.push(describeMedia(m)));
       parts.push("</lesson>");
     });
+    course.media.filter((m) => m.moduleId === module.id).forEach((m) => parts.push(describeMedia(m)));
     if (module.quizzes.length) {
       parts.push(`(This module ends with a graded quiz: ${module.quizzes.map((q) => q.title).join(", ")}.)`);
     }

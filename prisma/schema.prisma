@@ -173,6 +173,7 @@ model Module {
 
   lessons Lesson[]
   quizzes Quiz[]
+  media   CourseMedia[]
 
   @@map("modules")
 }
@@ -673,9 +674,13 @@ model CourseMedia {
   id                 String      @id @default(cuid())
   courseId           String
   course             Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  // Null = a course-wide resource; set = shown on that lesson.
+  // Where learners see it: on one lesson (lessonId), on one module
+  // (moduleId), or, with neither set, as a course-wide resource. At most
+  // one of the two is set.
   lessonId           String?
   lesson             Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  moduleId           String?
+  module             Module?     @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   kind               MediaKind
   status             MediaStatus @default(UPLOADING)
   title              String
@@ -698,6 +703,7 @@ model CourseMedia {
 
   @@index([courseId])
   @@index([lessonId])
+  @@index([moduleId])
   @@map("course_media")
 }
 

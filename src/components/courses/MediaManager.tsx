@@ -20,6 +20,7 @@ export interface ManagedMedia {
   originalSizeBytes: number;
   durationSeconds: number | null;
   lessonId: string | null;
+  moduleId: string | null;
   transcript: string | null;
   transcriptLanguage: string | null;
 }
@@ -27,6 +28,17 @@ export interface ManagedMedia {
 interface LessonOption {
   id: string;
   label: string;
+}
+
+interface ModuleOption {
+  id: string;
+  label: string;
+}
+
+// Where an upload is shown to learners. Null ids = the whole course.
+export interface MediaTarget {
+  lessonId: string | null;
+  moduleId: string | null;
 }
 
 const KINDS: { kind: Kind; label: string; icon: IconName; accept: string; hint: string }[] = [
@@ -101,29 +113,46 @@ function putWithProgress(
   });
 }
 
-export function MediaManager({
+// Choosing, compressing and uploading one file. The Media section uses it
+// with every kind and a "Show it on" picker; the attach buttons on each
+// module and lesson use it with video and audio and a fixed target.
+export function MediaUploadPanel({
   courseId,
-  lessons,
-  media,
+  kinds = ["VIDEO", "AUDIO", "DOCUMENT"],
+  target,
+  lessons = [],
+  modules = [],
+  idPrefix = "media",
+  compact = false,
+  onUploaded,
 }: {
   courseId: string;
-  lessons: LessonOption[];
-  media: ManagedMedia[];
+  kinds?: Kind[];
+  // Set = always upload there; unset = let the editor pick.
+  target?: MediaTarget;
+  lessons?: LessonOption[];
+  modules?: ModuleOption[];
+  idPrefix?: string;
+  compact?: boolean;
+  onUploaded?: () => void;
 }) {
   const router = useRouter();
   const inputs = useRef<Record<Kind, HTMLInputElement | null>>({ VIDEO: null, AUDIO: null, DOCUMENT: null });
   const [kind, setKind] = useState<Kind | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [lessonId, setLessonId] = useState("");
+  // "", "lesson:<id>" or "module:<id>".
+  const [placement, setPlacement] = useState("");
   const [stage, setStage] = useState<Stage>({ name: "idle" });
-  const [deleting, setDeleting] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [transcriptLanguage, setTranscriptLanguage] = useState<TranscriptLanguage>("en");
-  const [editingTranscript, setEditingTranscript] = useState<string | null>(null);
 
   const busy = stage.name === "compressing" || stage.name === "uploading";
+  const options = KINDS.filter((item) => kinds.includes(item.kind));
+  const destination: MediaTarget = target ?? {
+    lessonId: placement.startsWith("lesson:") ? placement.slice(7) : null,
+    moduleId: placement.startsWith("module:") ? placement.slice(7) : null,
+  };
 
   function pick(nextKind: Kind) {
     if (busy) return;
@@ -187,7 +216,8 @@ export function MediaManager({
         body: JSON.stringify({
           kind,
           title,
-          lessonId: lessonId || null,
+          lessonId: destination.lessonId,
+          moduleId: destination.moduleId,
           fileName: prepared.fileName,
           mimeType: prepared.mimeType,
           contentEncoding: prepared.contentEncoding,
@@ -228,7 +258,11 @@ export function MediaManager({
       setStage({ name: "done", saved });
       setFile(null);
       setTranscript("");
+      Object.values(inputs.current).forEach((input) => {
+        if (input) input.value = "";
+      });
       router.refresh();
+      onUploaded?.();
     } catch (error) {
       setStage({
         name: "error",
@@ -237,23 +271,11 @@ export function MediaManager({
     }
   }
 
-  async function remove(id: string) {
-    setDeleting(id);
-    try {
-      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
-      if (res.ok) router.refresh();
-    } finally {
-      setDeleting(null);
-    }
-  }
-
-  const lessonLabel = (id: string | null) =>
-    id ? lessons.find((l) => l.id === id)?.label ?? "A lesson" : "Whole course";
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-3 sm:grid-cols-3">
-        {KINDS.map((item) => (
+    <div className="flex flex-col gap-4">
+      <div className={clsx("grid gap-3", compact ? "grid-cols-2" : "sm:grid-cols-3")}>
+        {options.map((item) => (
           <div key={item.kind}>
             <input
               ref={(el) => {
@@ -271,16 +293,22 @@ export function MediaManager({
               onClick={() => pick(item.kind)}
               disabled={busy}
               className={clsx(
-                "flex h-full w-full cursor-pointer flex-col items-start gap-2 rounded-xl border-2 border-dashed p-4 text-left transition-colors",
+                "flex h-full w-full cursor-pointer rounded-xl border-2 border-dashed text-left transition-colors",
+                compact ? "min-h-11 items-center gap-2 p-2" : "flex-col items-start gap-2 p-4",
                 "border-brand-200 bg-brand-50/50 hover:border-brand-400 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50",
                 kind === item.kind && file && "border-brand-500 bg-brand-50",
               )}
             >
-              <span className="grid h-10 w-10 place-items-center rounded-lg bg-white text-brand-600 shadow-raised">
-                <Icon name={item.icon} />
+              <span
+                className={clsx(
+                  "grid shrink-0 place-items-center rounded-lg bg-white text-brand-600 shadow-raised",
+                  compact ? "h-8 w-8" : "h-10 w-10",
+                )}
+              >
+                <Icon name={item.icon} size={compact ? 18 : 24} />
               </span>
-              <span className="font-semibold text-ink-900">{item.label}</span>
-              <span className="text-xs text-ink-500">{item.hint}</span>
+              <span className={clsx("font-semibold text-ink-900", compact && "text-sm")}>{item.label}</span>
+              {!compact && <span className="text-xs text-ink-500">{item.hint}</span>}
             </button>
           </div>
         ))}
@@ -304,38 +332,53 @@ export function MediaManager({
             )}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={clsx("grid gap-3", !target && "sm:grid-cols-2")}>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="media-title" className="text-sm font-medium text-ink-700">
+              <label htmlFor={`${idPrefix}-title`} className="text-sm font-medium text-ink-700">
                 Title learners will see
               </label>
               <input
-                id="media-title"
+                id={`${idPrefix}-title`}
                 value={title}
                 disabled={busy}
                 onChange={(e) => setTitle(e.target.value)}
                 className="min-h-11 rounded-lg border border-ink-300 px-3 py-2 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100 sm:text-sm"
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="media-lesson" className="text-sm font-medium text-ink-700">
-                Show it on
-              </label>
-              <select
-                id="media-lesson"
-                value={lessonId}
-                disabled={busy}
-                onChange={(e) => setLessonId(e.target.value)}
-                className="min-h-11 rounded-lg border border-ink-300 bg-white px-3 py-2 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100 sm:text-sm"
-              >
-                <option value="">Whole course (resources)</option>
-                {lessons.map((lesson) => (
-                  <option key={lesson.id} value={lesson.id}>
-                    {lesson.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {!target && (
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor={`${idPrefix}-placement`} className="text-sm font-medium text-ink-700">
+                  Show it on
+                </label>
+                <select
+                  id={`${idPrefix}-placement`}
+                  value={placement}
+                  disabled={busy}
+                  onChange={(e) => setPlacement(e.target.value)}
+                  className="min-h-11 rounded-lg border border-ink-300 bg-white px-3 py-2 text-base outline-none focus-visible:border-brand-400 focus-visible:ring-2 focus-visible:ring-brand-100 sm:text-sm"
+                >
+                  <option value="">Whole course (resources)</option>
+                  {modules.length > 0 && (
+                    <optgroup label="Modules">
+                      {modules.map((m) => (
+                        <option key={m.id} value={`module:${m.id}`}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {lessons.length > 0 && (
+                    <optgroup label="Lessons">
+                      {lessons.map((lesson) => (
+                        <option key={lesson.id} value={`lesson:${lesson.id}`}>
+                          {lesson.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+            )}
           </div>
 
           {kind !== "DOCUMENT" && (
@@ -417,6 +460,47 @@ export function MediaManager({
         </Alert>
       )}
 
+    </div>
+  );
+}
+
+export function MediaManager({
+  courseId,
+  lessons,
+  modules = [],
+  media,
+}: {
+  courseId: string;
+  lessons: LessonOption[];
+  modules?: ModuleOption[];
+  media: ManagedMedia[];
+}) {
+  const router = useRouter();
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [editingTranscript, setEditingTranscript] = useState<string | null>(null);
+
+  async function remove(id: string) {
+    setDeleting(id);
+    try {
+      const res = await fetch(`/api/media/${id}`, { method: "DELETE" });
+      if (res.ok) router.refresh();
+    } finally {
+      setDeleting(null);
+    }
+  }
+
+  const placementLabel = (item: ManagedMedia) =>
+    item.lessonId
+      ? lessons.find((l) => l.id === item.lessonId)?.label ?? "A lesson"
+      : item.moduleId
+        ? modules.find((m) => m.id === item.moduleId)?.label ?? "A module"
+        : "Whole course";
+
+  return (
+    <div className="flex flex-col gap-5">
+      <MediaUploadPanel courseId={courseId} lessons={lessons} modules={modules} />
+
       {media.length > 0 ? (
         <ul className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100 bg-white">
           {media.map((item) => {
@@ -441,7 +525,7 @@ export function MediaManager({
                       {item.title}
                     </a>
                     <p className="truncate text-xs text-ink-500">
-                      {lessonLabel(item.lessonId)}
+                      {placementLabel(item)}
                       {" · "}
                       {formatBytes(item.sizeBytes)}
                       {item.durationSeconds ? ` · ${formatDuration(item.durationSeconds)}` : ""}
