@@ -34,15 +34,18 @@ enum UserRole {
 // InstructorProfile, OrganizationProfile, etc.) will be added when a module
 // actually needs them.
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  passwordHash  String
-  fullName      String
-  role          UserRole  @default(LEARNER)
-  isActive      Boolean   @default(true)
-  emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  email          String    @unique
+  passwordHash   String
+  fullName       String
+  role           UserRole  @default(LEARNER)
+  isActive       Boolean   @default(true)
+  emailVerified  DateTime?
+  // Carried in the session cookie. Raising it signs the user out on every
+  // device: password reset, role or access change, "sign out everywhere".
+  sessionVersion Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   coursesTaught       Course[]              @relation("InstructorCourses")
   enrolments          Enrolment[]
@@ -696,4 +699,18 @@ model TutorMessage {
 
   @@index([courseId, userId, createdAt])
   @@map("tutor_messages")
+}
+
+// ---------------------------------------------------------------------
+// Rate limiting — one row per key (e.g. "login:<ip>"), shared by every
+// server instance, so limits hold on serverless hosting where each request
+// can land on a fresh instance. See src/lib/rate-limit.ts.
+// ---------------------------------------------------------------------
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime @map("reset_at")
+
+  @@index([resetAt])
+  @@map("rate_limits")
 }

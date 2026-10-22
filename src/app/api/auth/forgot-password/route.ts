@@ -3,20 +3,23 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { generateToken } from "@/lib/tokens";
 import { sendEmail, buildPasswordResetEmail } from "@/lib/notifications";
-import { rateLimitOrNull } from "@/lib/rate-limit";
+import { rateLimit, rateLimitOrNull } from "@/lib/rate-limit";
+import { rejectBots } from "@/lib/bot-check";
 
 const RESET_EXPIRY_HOURS = 1;
 
 const forgotSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: z.string().trim().toLowerCase().max(254).email(),
 });
 
 export async function POST(request: Request) {
   // Tighter than login: this endpoint can trigger an email send to a
   // third party's inbox, so it also guards against using this platform to
   // spam someone else's address, not just brute forcing.
-  const limited = rateLimitOrNull(request, "forgot-password", { limit: 5, windowSeconds: 600 });
+  const limited = await rateLimitOrNull(request, "forgot-password", { limit: 5, windowSeconds: 600 });
   if (limited) return limited;
+  const bot = await rejectBots();
+  if (bot) return bot;
 
   const body = await request.json().catch(() => null);
   const parsed = forgotSchema.safeParse(body);
@@ -42,7 +45,12 @@ export async function POST(request: Request) {
   // SECURITY.md.
   const { raw, hash } = generateToken();
 
-  if (user) {
+  // At most three reset emails an hour to any one inbox, whichever
+  // network the requests come from. Over the limit, the response stays the
+  // same and simply nothing is sent.
+  const inboxLimit = await rateLimit(`forgot-password-email:${parsed.data.email}`, { limit: 3, windowSeconds: 3600 });
+
+  if (user && user.isActive && inboxLimit.allowed) {
     await prisma.verificationToken.create({
       data: {
         userId: user.id,

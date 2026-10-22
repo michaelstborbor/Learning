@@ -65,6 +65,7 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
+          maxLength={128}
           required
         />
         <Button type="submit" disabled={submitting}>

@@ -9,7 +9,7 @@ import { sendEmail, buildCohortInviteEmail } from "@/lib/notifications";
 const INVITE_EXPIRY_DAYS = 7;
 
 const addMemberSchema = z.object({
-  email: z.string().trim().toLowerCase().email("Enter a valid email address."),
+  email: z.string().trim().toLowerCase().max(254).email("Enter a valid email address."),
 });
 
 export async function POST(

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { registerSchema, loginSchema } from "./validation";
+import { registerSchema, loginSchema, webUrlSchema, safeHref } from "./validation";
 
 describe("registerSchema", () => {
   it("accepts valid input", () => {
@@ -74,5 +74,54 @@ describe("loginSchema", () => {
     // length policy ever changed.
     const result = loginSchema.safeParse({ email: "ada@example.com", password: "short" });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("webUrlSchema", () => {
+  it("accepts http and https links", () => {
+    expect(webUrlSchema.safeParse("https://docs.google.com/document/d/abc").success).toBe(true);
+    expect(webUrlSchema.safeParse("http://example.com").success).toBe(true);
+  });
+
+  it("rejects links that could run script", () => {
+    expect(webUrlSchema.safeParse("javascript:alert(1)").success).toBe(false);
+    expect(webUrlSchema.safeParse("data:text/html,<script>alert(1)</script>").success).toBe(false);
+    expect(webUrlSchema.safeParse("JaVaScRiPt:alert(1)").success).toBe(false);
+  });
+
+  it("rejects very long links", () => {
+    expect(webUrlSchema.safeParse(`https://example.com/${"a".repeat(2100)}`).success).toBe(false);
+  });
+});
+
+describe("safeHref", () => {
+  it("passes http(s) links through", () => {
+    expect(safeHref("https://example.com/work")).toBe("https://example.com/work");
+  });
+
+  it("drops anything else", () => {
+    expect(safeHref("javascript:alert(1)")).toBeUndefined();
+    expect(safeHref(" data:text/html,hi")).toBeUndefined();
+    expect(safeHref(null)).toBeUndefined();
+  });
+});
+
+describe("length limits", () => {
+  it("rejects a password over 128 characters", () => {
+    const result = registerSchema.safeParse({
+      fullName: "Ada Lovelace",
+      email: "ada@example.com",
+      password: "a".repeat(129),
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a very long name", () => {
+    const result = registerSchema.safeParse({
+      fullName: "A".repeat(121),
+      email: "ada@example.com",
+      password: "correct-horse-battery",
+    });
+    expect(result.success).toBe(false);
   });
 });

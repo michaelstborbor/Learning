@@ -5,8 +5,8 @@ import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 
 const lessonSchema = z.object({
-  title: z.string().trim().min(2, "Give the lesson a title."),
-  content: z.string().trim().min(10, "Lesson content is too short."),
+  title: z.string().trim().min(2, "Give the lesson a title.").max(200, "Keep the title under 200 characters."),
+  content: z.string().trim().min(10, "Lesson content is too short.").max(100000, "Lesson content is too long. Split it into two lessons."),
 });
 
 export async function POST(

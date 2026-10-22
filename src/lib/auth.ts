@@ -1,8 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/db";
 
 // NOTE: Normally this would be `import type { UserRole } from "@prisma/client"`.
 // It's defined locally instead because `npx prisma generate` cannot reach
@@ -36,13 +38,26 @@ export async function verifyPassword(
   return bcrypt.compare(plainPassword, hash);
 }
 
+// A real bcrypt hash (cost 12) of a random string nobody knows. Login
+// compares against it when the email has no account, so a wrong email takes
+// as long as a wrong password and response times don't reveal which emails
+// are registered.
+const DUMMY_PASSWORD_HASH = "$2b$12$32gSuMbIFXBcmyVPusG7z.FUYjWDb0wHVKemMahTH.724uZbiJcOK";
+
+export async function burnPasswordCheck(plainPassword: string): Promise<void> {
+  await bcrypt.compare(plainPassword, DUMMY_PASSWORD_HASH).catch(() => false);
+}
+
 // ---- Sessions ------------------------------------------------------------
 //
 // Sessions are a signed JWT stored in an httpOnly, secure cookie — never in
-// localStorage or a client-readable place. The JWT itself only carries the
-// user id and role: enough to identify who's asking and what they're
-// allowed to do, nothing sensitive. The frontend never decides
-// authorization; every check in this file runs server-side.
+// localStorage or a client-readable place. The JWT carries the user id, the
+// role and the account's session version; nothing sensitive. The frontend
+// never decides authorization; every check in this file runs server-side.
+//
+// Every request also re-reads the account (once per request, see cache()
+// below), so a deactivated account, a changed role or a password reset takes
+// effect immediately instead of when the 7-day cookie runs out.
 
 const SESSION_COOKIE = "ecoskills_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 24 * 7; // 7 days
@@ -62,8 +77,8 @@ export interface SessionPayload {
   role: UserRole;
 }
 
-export async function createSession(payload: SessionPayload): Promise<void> {
-  const token = await new SignJWT({ ...payload })
+export async function createSession(payload: SessionPayload & { sessionVersion: number }): Promise<void> {
+  const token = await new SignJWT({ userId: payload.userId, role: payload.role, sv: payload.sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DURATION_SECONDS}s`)
@@ -84,25 +99,48 @@ export async function clearSession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
+/** Signs the user out on every device by invalidating all their existing
+ * session cookies. Use `db` to run it inside a transaction. */
+export async function revokeAllSessions(
+  userId: string,
+  db: Pick<typeof prisma, "user"> = prisma,
+): Promise<void> {
+  await db.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+}
+
 /** Reads and verifies the session cookie. Returns null if absent or invalid —
  * never throws for a missing/expired session, since "not logged in" is a
  * normal, expected state, not an error condition. */
-export async function getSession(): Promise<SessionPayload | null> {
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
+  let userId: string;
+  let tokenVersion: number;
   try {
-    const { payload } = await jwtVerify(token, getAuthSecret());
+    const { payload } = await jwtVerify(token, getAuthSecret(), { algorithms: ["HS256"] });
     if (typeof payload.userId !== "string" || typeof payload.role !== "string") {
       return null;
     }
-    return { userId: payload.userId, role: payload.role as UserRole };
+    userId = payload.userId;
+    // Cookies issued before session versions existed carry none; they
+    // match accounts that have never been signed out everywhere.
+    tokenVersion = typeof payload.sv === "number" ? payload.sv : 0;
   } catch {
     // Expired, tampered, or signed with an old secret — treat as logged out.
     return null;
   }
-}
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, isActive: true, sessionVersion: true },
+  });
+  if (!user || !user.isActive || user.sessionVersion !== tokenVersion) return null;
+  // The role comes from the database, not the cookie, so a role change by
+  // an administrator applies on the user's next request.
+  return { userId, role: user.role as UserRole };
+});
 
 /** Use in server components/route handlers that require *any* logged-in
  * user. Returns the session or null — callers decide how to respond

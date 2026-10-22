@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { generateToken } from "@/lib/tokens";
 import { sendEmail, buildVerificationEmail } from "@/lib/notifications";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { rateLimit } from "@/lib/rate-limit";
 
 const VERIFICATION_EXPIRY_HOURS = 24;
 
@@ -15,7 +15,7 @@ export async function POST() {
   // authenticated, so the account itself is the more precise identity to
   // rate-limit, and it means the limit follows the account even if the
   // request comes from a different network.
-  const limit = checkRateLimit(`resend-verification:${session.userId}`, {
+  const limit = await rateLimit(`resend-verification:${session.userId}`, {
     limit: 3,
     windowSeconds: 600,
   });

@@ -9,7 +9,7 @@ const PASS_THRESHOLD = 70;
 
 const gradeSchema = z.object({
   score: z.number().int().min(0).max(100),
-  feedback: z.string().trim().min(1, "Give the learner some feedback."),
+  feedback: z.string().trim().min(1, "Give the learner some feedback.").max(5000, "Keep feedback under 5,000 characters."),
 });
 
 export async function POST(

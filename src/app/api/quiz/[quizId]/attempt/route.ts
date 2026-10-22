@@ -11,7 +11,7 @@ import {
 } from "@/lib/quiz";
 
 const attemptSchema = z.object({
-  attemptId: z.string(),
+  attemptId: z.string().max(40),
   // Map of questionId -> chosen answer id(s) or short-answer text.
   answers: responsesSchema,
 });

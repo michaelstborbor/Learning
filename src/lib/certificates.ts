@@ -1,7 +1,15 @@
+import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
 
-function generateCertificateNumber(): string {
-  const random = Math.random().toString(36).slice(2, 10).toUpperCase();
+// No 0/O or 1/I, so a number read out or typed in by hand can't be misread.
+const CERTIFICATE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+// Unguessable (crypto-random, 50 bits), so nobody can find other people's
+// certificates on the public verify page by trying numbers.
+export function generateCertificateNumber(): string {
+  const bytes = randomBytes(10);
+  let random = "";
+  for (const byte of bytes) random += CERTIFICATE_ALPHABET[byte % 32];
   return `ESA-${random}`;
 }
 

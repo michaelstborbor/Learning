@@ -6,6 +6,7 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { safeHref } from "@/lib/validation";
 
 interface Submission {
   id: string;
@@ -66,9 +67,9 @@ export function ProjectSubmissionPanel({
               <li key={s.id} className="rounded-md border border-ink-100 p-3 text-sm">
                 <div className="flex items-center justify-between">
                   <a
-                    href={s.submissionUrl}
+                    href={safeHref(s.submissionUrl)}
                     target="_blank"
-                    rel="noreferrer"
+                    rel="noopener noreferrer"
                     className="text-brand-600 hover:underline"
                   >
                     View submission

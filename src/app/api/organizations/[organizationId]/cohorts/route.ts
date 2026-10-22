@@ -5,11 +5,11 @@ import { getSession } from "@/lib/auth";
 import { canManageOrganization } from "@/lib/permissions";
 
 const cohortSchema = z.object({
-  courseId: z.string().min(1, "Choose a course."),
-  title: z.string().trim().min(2, "Give the cohort a title."),
-  startDate: z.string().min(1, "Set a start date."),
-  endDate: z.string().min(1, "Set an end date."),
-  location: z.string().trim().optional(),
+  courseId: z.string().min(1, "Choose a course.").max(40),
+  title: z.string().trim().min(2, "Give the cohort a title.").max(200),
+  startDate: z.string().min(1, "Set a start date.").max(40),
+  endDate: z.string().min(1, "Set an end date.").max(40),
+  location: z.string().trim().max(200).optional(),
   deliveryMode: z.enum(["ONLINE", "OFFLINE", "HYBRID"]).default("ONLINE"),
 });
 

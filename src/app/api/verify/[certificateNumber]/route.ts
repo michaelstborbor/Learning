@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { rateLimitOrNull } from "@/lib/rate-limit";
 
 // Deliberately public (no getSession check) — certificate verification has
 // to work for anyone, including an employer with no EliteSkills Academy
@@ -10,10 +11,18 @@ import { prisma } from "@/lib/db";
 // (see PHASE0_BLUEPRINT.md Section 60: "Can certificates be independently
 // verified?").
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ certificateNumber: string }> },
 ) {
+  // Plenty for a real employer checking a few certificates, too few to
+  // sweep through numbers looking for other people's.
+  const limited = await rateLimitOrNull(request, "verify", { limit: 30, windowSeconds: 60 });
+  if (limited) return limited;
+
   const { certificateNumber } = await params;
+  if (certificateNumber.length > 40) {
+    return NextResponse.json({ error: "No certificate found with that ID." }, { status: 404 });
+  }
 
   const certificate = await prisma.certificate.findUnique({
     where: { certificateNumber },

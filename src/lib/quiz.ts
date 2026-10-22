@@ -7,17 +7,17 @@ import { maybeIssueCertificate } from "@/lib/certificates";
 // ---- Authoring -----------------------------------------------------------
 
 const answerSchema = z.object({
-  text: z.string().trim().min(1, "Every option needs some text."),
+  text: z.string().trim().min(1, "Every option needs some text.").max(1000),
   isCorrect: z.boolean(),
 });
 
 const questionSchema = z
   .object({
     type: z.enum(["SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "SHORT_ANSWER"]),
-    prompt: z.string().trim().min(3, "Each question needs a prompt of at least 3 characters."),
+    prompt: z.string().trim().min(3, "Each question needs a prompt of at least 3 characters.").max(5000),
     points: z.number().int().min(1).max(100).default(1),
     explanation: z.string().trim().max(2000).optional().nullable(),
-    answers: z.array(answerSchema).min(1),
+    answers: z.array(answerSchema).min(1).max(20),
   })
   .superRefine((q, ctx) => {
     const correct = q.answers.filter((a) => a.isCorrect).length;
@@ -42,16 +42,16 @@ const questionSchema = z
   });
 
 export const quizInputSchema = z.object({
-  title: z.string().trim().min(2, "Give the quiz a title."),
+  title: z.string().trim().min(2, "Give the quiz a title.").max(200),
   description: z.string().trim().max(2000).optional().nullable(),
-  moduleId: z.string().optional().nullable(),
+  moduleId: z.string().max(40).optional().nullable(),
   passMarkPercent: z.number().int().min(0).max(100).default(70),
   timeLimitMinutes: z.number().int().min(1).max(600).optional().nullable(),
   maxAttempts: z.number().int().min(1).max(100).optional().nullable(),
   shuffleQuestions: z.boolean().default(false),
   showAnswers: z.boolean().default(true),
   weight: z.number().int().min(0).max(100).default(1),
-  questions: z.array(questionSchema).min(1, "Add at least one question."),
+  questions: z.array(questionSchema).min(1, "Add at least one question.").max(200, "A quiz can have at most 200 questions."),
 });
 
 export type QuizInput = z.infer<typeof quizInputSchema>;

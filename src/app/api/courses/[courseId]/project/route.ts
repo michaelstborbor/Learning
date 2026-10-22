@@ -5,11 +5,11 @@ import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 
 const projectSchema = z.object({
-  title: z.string().trim().min(3),
-  instructions: z.string().trim().min(10),
-  rubric: z.string().trim().min(10),
-  skillName: z.string().trim().min(2).optional(),
-  skillCategory: z.string().trim().min(2).optional(),
+  title: z.string().trim().min(3).max(200),
+  instructions: z.string().trim().min(10).max(20000),
+  rubric: z.string().trim().min(10).max(20000),
+  skillName: z.string().trim().min(2).max(120).optional(),
+  skillCategory: z.string().trim().min(2).max(80).optional(),
   weight: z.number().int().min(0).max(100).optional(),
 });
 

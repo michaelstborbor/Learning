@@ -6,6 +6,7 @@ import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
+import { safeHref } from "@/lib/validation";
 
 interface PendingSubmission {
   id: string;
@@ -63,9 +64,9 @@ function GradeCard({ submission }: { submission: PendingSubmission }) {
         <Badge tone="brand">Pending</Badge>
       </div>
       <a
-        href={submission.submissionUrl}
+        href={safeHref(submission.submissionUrl)}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="mt-1 block text-sm text-brand-600 hover:underline"
       >
         View submission

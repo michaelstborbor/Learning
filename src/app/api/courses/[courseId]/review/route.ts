@@ -7,7 +7,7 @@ import { writeAuditLog } from "@/lib/audit-log";
 
 const reviewSchema = z.object({
   decision: z.enum(["APPROVE", "REQUEST_CHANGES"]),
-  feedback: z.string().trim().optional(),
+  feedback: z.string().trim().max(5000, "Keep feedback under 5,000 characters.").optional(),
 });
 
 // Deliberately a distinct role group from PUBLISH_ROLES — a Content
