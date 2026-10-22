@@ -1,6 +1,8 @@
 import clsx from "clsx";
 
-// Generated cover art: no image downloads, so the catalogue stays light on
+// Cover art. With a poster the author uploaded, the image fills the cover
+// under a dark scrim so text on top stays readable. Without one it falls
+// back to generated art: no image downloads, so the catalogue stays light on
 // slow connections. Each course gets a stable palette and the signal-arc
 // motif from a hash of its title, so the same course always looks the same.
 const PALETTES = [
@@ -21,13 +23,26 @@ function hash(value: string): number {
 
 export function CourseCover({
   title,
+  posterUrl,
   className,
   children,
 }: {
   title: string;
+  posterUrl?: string | null;
   className?: string;
   children?: React.ReactNode;
 }) {
+  if (posterUrl) {
+    return (
+      <div className={clsx("relative isolate overflow-hidden bg-ink-900", className)}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- served by our own poster route, already resized */}
+        <img src={posterUrl} alt="" loading="lazy" decoding="async" className="absolute inset-0 -z-10 h-full w-full object-cover" />
+        <div aria-hidden="true" className="absolute inset-0 -z-10 bg-gradient-to-t from-ink-950/85 via-ink-950/40 to-ink-950/10" />
+        {children}
+      </div>
+    );
+  }
+
   const h = hash(title);
   const palette = PALETTES[h % PALETTES.length];
   const origin = ORIGINS[(h >> 3) % ORIGINS.length];

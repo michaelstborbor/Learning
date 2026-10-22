@@ -6,6 +6,8 @@ import clsx from "clsx";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
 import { Icon, type IconName } from "@/components/ui/Icon";
+import { TRANSCRIPT_LANGUAGES, isTranscriptLanguage, type TranscriptLanguage } from "@/lib/transcript";
+import { TranscriptEditor, TranscriptFields } from "./TranscriptFields";
 
 type Kind = "VIDEO" | "AUDIO" | "DOCUMENT";
 
@@ -18,6 +20,8 @@ export interface ManagedMedia {
   originalSizeBytes: number;
   durationSeconds: number | null;
   lessonId: string | null;
+  transcript: string | null;
+  transcriptLanguage: string | null;
 }
 
 interface LessonOption {
@@ -115,6 +119,9 @@ export function MediaManager({
   const [stage, setStage] = useState<Stage>({ name: "idle" });
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState("");
+  const [transcriptLanguage, setTranscriptLanguage] = useState<TranscriptLanguage>("en");
+  const [editingTranscript, setEditingTranscript] = useState<string | null>(null);
 
   const busy = stage.name === "compressing" || stage.name === "uploading";
 
@@ -135,6 +142,7 @@ export function MediaManager({
     setKind(null);
     setFile(null);
     setTitle("");
+    setTranscript("");
     setStage({ name: "idle" });
     Object.values(inputs.current).forEach((input) => {
       if (input) input.value = "";
@@ -186,14 +194,26 @@ export function MediaManager({
           sizeBytes: prepared.blob.size,
           originalSizeBytes: prepared.originalSize,
           durationSeconds: prepared.durationSeconds,
+          transcript: kind === "DOCUMENT" ? null : transcript,
+          transcriptLanguage,
         }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Couldn't start the upload.");
 
-      await putWithProgress(data.upload.url, data.upload.headers, prepared.blob, (progress) =>
-        setStage({ name: "uploading", progress }),
-      );
+      const onProgress = (progress: number) => setStage({ name: "uploading", progress });
+      if (data.upload.method === "BLOB") {
+        const { upload: uploadToBlob } = await import("@vercel/blob/client");
+        await uploadToBlob(data.upload.pathname, prepared.blob, {
+          access: "private",
+          handleUploadUrl: data.upload.handleUploadUrl,
+          contentType: data.upload.contentType,
+          multipart: prepared.blob.size > 8 * 1024 * 1024,
+          onUploadProgress: ({ loaded, total }) => onProgress(total ? loaded / total : 0),
+        });
+      } else {
+        await putWithProgress(data.upload.url, data.upload.headers, prepared.blob, onProgress);
+      }
 
       const done = await fetch(`/api/media/${data.id}/complete`, { method: "POST" });
       const doneData = await done.json();
@@ -207,6 +227,7 @@ export function MediaManager({
           : null;
       setStage({ name: "done", saved });
       setFile(null);
+      setTranscript("");
       router.refresh();
     } catch (error) {
       setStage({
@@ -317,6 +338,28 @@ export function MediaManager({
             </div>
           </div>
 
+          {kind !== "DOCUMENT" && (
+            <div className="flex flex-col gap-3 rounded-xl border border-highlight-100 bg-highlight-100/40 p-3">
+              <p className="flex items-start gap-2 text-sm text-ink-700">
+                <Icon name="captions" size={18} className="mt-0.5 shrink-0 text-highlight-700" />
+                <span>
+                  <strong className="font-semibold text-ink-900">Please add a transcript in English or Krio.</strong>{" "}
+                  The AI study buddy can&apos;t hear recordings, so it uses the transcript to explain this{" "}
+                  {kind === "VIDEO" ? "video" : "audio"} to learners. You can also add it later.
+                </span>
+              </p>
+              <TranscriptFields
+                text={transcript}
+                language={transcriptLanguage}
+                disabled={busy}
+                onChange={(text, language) => {
+                  setTranscript(text);
+                  setTranscriptLanguage(language);
+                }}
+              />
+            </div>
+          )}
+
           {(stage.name === "compressing" || stage.name === "uploading") && (
             <div aria-live="polite">
               <div className="mb-1 flex justify-between text-xs text-ink-700">
@@ -383,49 +426,80 @@ export function MediaManager({
                 ? Math.round((1 - item.sizeBytes / item.originalSizeBytes) * 100)
                 : 0;
             return (
-              <li key={item.id} className="flex items-center gap-3 p-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
-                  <Icon name={icon} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <a
-                    href={`/api/media/${item.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="block truncate font-medium text-ink-900 hover:text-brand-600 hover:underline"
-                  >
-                    {item.title}
-                  </a>
-                  <p className="truncate text-xs text-ink-500">
-                    {lessonLabel(item.lessonId)}
-                    {" · "}
-                    {formatBytes(item.sizeBytes)}
-                    {item.durationSeconds ? ` · ${formatDuration(item.durationSeconds)}` : ""}
-                    {saving > 0 ? ` · ${saving}% smaller than the original` : ""}
-                  </p>
-                </div>
-                {confirming === item.id ? (
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="danger"
-                      className="min-h-9 px-3"
-                      onClick={() => remove(item.id)}
-                      disabled={deleting === item.id}
+              <li key={item.id} className="flex flex-col gap-3 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand-600">
+                    <Icon name={icon} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <a
+                      href={`/api/media/${item.id}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="block truncate font-medium text-ink-900 hover:text-brand-600 hover:underline"
                     >
-                      {deleting === item.id ? "Deleting…" : "Delete"}
-                    </Button>
-                    <Button variant="ghost" className="min-h-9 px-3" onClick={() => setConfirming(null)}>
-                      Keep
-                    </Button>
+                      {item.title}
+                    </a>
+                    <p className="truncate text-xs text-ink-500">
+                      {lessonLabel(item.lessonId)}
+                      {" · "}
+                      {formatBytes(item.sizeBytes)}
+                      {item.durationSeconds ? ` · ${formatDuration(item.durationSeconds)}` : ""}
+                      {saving > 0 ? ` · ${saving}% smaller than the original` : ""}
+                    </p>
+                    {item.kind !== "DOCUMENT" && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingTranscript(editingTranscript === item.id ? null : item.id)}
+                        className={clsx(
+                          "mt-1 inline-flex min-h-8 cursor-pointer items-center gap-1 rounded-full px-2.5 text-xs font-semibold",
+                          item.transcript
+                            ? "bg-brand-50 text-brand-700 hover:bg-brand-100"
+                            : "bg-highlight-100 text-highlight-700 hover:bg-highlight-100/70",
+                        )}
+                      >
+                        <Icon name="captions" size={14} />
+                        {item.transcript
+                          ? `Transcript (${TRANSCRIPT_LANGUAGES[isTranscriptLanguage(item.transcriptLanguage) ? item.transcriptLanguage : "en"]}) · Edit`
+                          : "No transcript yet · Add one"}
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirming(item.id)}
-                    className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-lg text-danger-500 hover:bg-danger-100"
-                  >
-                    <Icon name="trash" size={18} label={`Delete ${item.title}`} />
-                  </button>
+                  {confirming === item.id ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Button
+                        variant="danger"
+                        className="min-h-9 px-3"
+                        onClick={() => remove(item.id)}
+                        disabled={deleting === item.id}
+                      >
+                        {deleting === item.id ? "Deleting…" : "Delete"}
+                      </Button>
+                      <Button variant="ghost" className="min-h-9 px-3" onClick={() => setConfirming(null)}>
+                        Keep
+                      </Button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirming(item.id)}
+                      className="grid h-10 w-10 shrink-0 cursor-pointer place-items-center rounded-lg text-danger-500 hover:bg-danger-100"
+                    >
+                      <Icon name="trash" size={18} label={`Delete ${item.title}`} />
+                    </button>
+                  )}
+                </div>
+                {editingTranscript === item.id && (
+                  <TranscriptEditor
+                    mediaId={item.id}
+                    initialText={item.transcript ?? ""}
+                    initialLanguage={isTranscriptLanguage(item.transcriptLanguage) ? item.transcriptLanguage : "en"}
+                    onCancel={() => setEditingTranscript(null)}
+                    onSaved={() => {
+                      setEditingTranscript(null);
+                      router.refresh();
+                    }}
+                  />
                 )}
               </li>
             );

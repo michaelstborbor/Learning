@@ -43,7 +43,7 @@ export async function Nav() {
     <header className="sticky top-0 z-40 border-b border-brand-100/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
       {/* Mouse effects run site-wide from here, since the nav is on every page. */}
       <MouseEffects />
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-2.5">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8 py-2.5">
         <Link href={session ? (isLearnerNav ? "/dashboard" : "/") : "/"} className="group flex items-center gap-2.5">
           {/* Decorative: the visible name next to it already names the link. */}
           <Image

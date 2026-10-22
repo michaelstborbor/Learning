@@ -526,6 +526,108 @@
   animation: rise-in 0.35s var(--ease-out) both;
 }
 
+/* ------------------------------------------------------------------
+   STUDY BUDDY CHAT (TutorChat.tsx)
+   A messaging-app conversation: a quiet patterned wallpaper, incoming
+   bubbles in white on the left, the learner's own in pale green on the
+   right, each with a small tail on the first bubble of a run.
+   ------------------------------------------------------------------ */
+.chat-wall {
+  background-color: #eae6df;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgb(15 118 110 / 0.07) 0 2px, transparent 2.5px),
+    radial-gradient(circle at 70% 75%, rgb(15 118 110 / 0.06) 0 1.5px, transparent 2px),
+    radial-gradient(circle at 85% 20%, rgb(234 88 12 / 0.05) 0 2px, transparent 2.5px);
+  background-size: 46px 46px, 38px 38px, 58px 58px;
+}
+
+.bubble {
+  position: relative;
+  max-width: min(36rem, 85%);
+  border-radius: 0.625rem;
+  padding: 0.375rem 0.625rem 0.375rem 0.625rem;
+  box-shadow: 0 1px 0.5px rgb(11 20 26 / 0.13);
+  overflow-wrap: anywhere;
+}
+
+.bubble-in {
+  background: #ffffff;
+  color: var(--color-ink-900);
+}
+
+.bubble-out {
+  background: #d9fdd3;
+  color: var(--color-ink-900);
+}
+
+.bubble-tail.bubble-in {
+  border-top-left-radius: 0;
+}
+
+.bubble-tail.bubble-out {
+  border-top-right-radius: 0;
+}
+
+.bubble-tail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 8px;
+  height: 13px;
+}
+
+.bubble-tail.bubble-in::before {
+  left: -8px;
+  background: #ffffff;
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+}
+
+.bubble-tail.bubble-out::before {
+  right: -8px;
+  background: #d9fdd3;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+@keyframes bubble-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+}
+
+.bubble-pop {
+  animation: bubble-pop 0.22s var(--ease-out) both;
+}
+
+@keyframes typing-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: var(--color-ink-500);
+  animation: typing-dot 1.2s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .logo-wave,
   .logo-orbit,

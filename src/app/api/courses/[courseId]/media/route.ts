@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 import { createUploadTarget, maxUploadBytes } from "@/lib/storage";
 import { formatBytes, isAllowedType, safeFileName } from "@/lib/media";
+import { MAX_TRANSCRIPT_CHARS, cleanTranscript } from "@/lib/transcript";
 
 const createSchema = z.object({
   kind: z.enum(["VIDEO", "AUDIO", "DOCUMENT"]),
@@ -17,6 +18,8 @@ const createSchema = z.object({
   sizeBytes: z.number().int().positive(),
   originalSizeBytes: z.number().int().positive(),
   durationSeconds: z.number().nonnegative().optional().nullable(),
+  transcript: z.string().max(MAX_TRANSCRIPT_CHARS).optional().nullable(),
+  transcriptLanguage: z.enum(["en", "kri"]).optional().nullable(),
 });
 
 const EXTENSION: Record<string, string> = {
@@ -107,6 +110,7 @@ export async function POST(
         input.durationSeconds !== null && input.durationSeconds !== undefined
           ? Math.round(input.durationSeconds)
           : null,
+      ...transcriptFields(input),
       storageKey,
       uploadedById: session.userId,
     },
@@ -114,4 +118,11 @@ export async function POST(
 
   const upload = await createUploadTarget(storageKey, media.id, mimeType, media.contentEncoding);
   return NextResponse.json({ id: media.id, upload }, { status: 201 });
+}
+
+function transcriptFields(input: z.infer<typeof createSchema>) {
+  const transcript = input.kind === "DOCUMENT" ? "" : cleanTranscript(input.transcript ?? "");
+  return transcript
+    ? { transcript, transcriptLanguage: input.transcriptLanguage ?? "en" }
+    : { transcript: null, transcriptLanguage: null };
 }

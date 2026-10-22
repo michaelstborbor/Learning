@@ -12,6 +12,7 @@ interface CourseCardProps {
   description?: string;
   lessonCount?: number;
   progressPercent?: number;
+  posterUrl?: string | null;
 }
 
 export function CourseCard({
@@ -23,10 +24,11 @@ export function CourseCard({
   description,
   lessonCount,
   progressPercent,
+  posterUrl,
 }: CourseCardProps) {
   return (
     <article className="flex h-full flex-col overflow-hidden rounded-xl border border-ink-100 bg-white shadow-raised transition-colors hover:border-brand-300">
-      <CourseCover title={title} className="flex h-28 items-end justify-between p-4">
+      <CourseCover title={title} posterUrl={posterUrl} className="flex aspect-[2/1] items-end justify-between p-4">
         <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium text-white backdrop-blur">
           {category}
         </span>

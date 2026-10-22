@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES } from "@/lib/roles";
 import { slugify } from "@/lib/slugify";
+import { hoursFromMinutes } from "@/lib/course-duration";
 
 export async function GET() {
   const courses = await prisma.course.findMany({
@@ -20,6 +21,8 @@ const createCourseSchema = z.object({
   category: z.string().trim().min(2, "Category is required."),
   level: z.string().trim().min(2, "Level is required."),
   estimatedHours: z.number().int().positive().default(1),
+  // Hours and minutes from the course form, as total minutes.
+  durationMinutes: z.number().int().min(5, "A course needs at least 5 minutes.").max(100000).optional(),
 });
 
 export async function POST(request: Request) {
@@ -37,7 +40,8 @@ export async function POST(request: Request) {
     );
   }
 
-  const { title, description, category, level, estimatedHours } = parsed.data;
+  const { title, description, category, level, durationMinutes } = parsed.data;
+  const estimatedHours = durationMinutes ? hoursFromMinutes(durationMinutes) : parsed.data.estimatedHours;
   const baseSlug = slugify(title);
 
   // Guard against slug collisions rather than trusting titles to be unique.
@@ -55,6 +59,7 @@ export async function POST(request: Request) {
       category,
       level,
       estimatedHours,
+      durationMinutes: durationMinutes ?? null,
       slug,
       instructorId: session.userId,
       status: "DRAFT",

@@ -147,6 +147,27 @@ const PATHS = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
+  image: (
+    <>
+      <rect x="3" y="3.5" width="18" height="17" rx="2" />
+      <circle cx="9" cy="9.5" r="1.75" />
+      <path d="m21 15.5-5-5-11 10" />
+    </>
+  ),
+  chat: <path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.6L3.5 20.5l1.4-4.4A8.5 8.5 0 1 1 20.5 11.5z" />,
+  send: <path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5-7.5-4z" />,
+  captions: (
+    <>
+      <rect x="2.5" y="5" width="19" height="14" rx="2" />
+      <path d="M10 10.5a2 2 0 1 0 0 3M17 10.5a2 2 0 1 0 0 3" />
+    </>
+  ),
+  bot: (
+    <>
+      <rect x="4" y="8" width="16" height="12" rx="3" />
+      <path d="M12 8V4.5M9 13.5h.01M15 13.5h.01M2 13v2M22 13v2" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof PATHS;

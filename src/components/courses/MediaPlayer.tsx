@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { formatBytes, formatDuration } from "@/lib/media";
+import { TRANSCRIPT_LANGUAGES, isTranscriptLanguage } from "@/lib/transcript";
 
 export interface MediaItem {
   id: string;
@@ -10,6 +11,35 @@ export interface MediaItem {
   mimeType: string;
   sizeBytes: number;
   durationSeconds: number | null;
+  transcript?: string | null;
+  transcriptLanguage?: string | null;
+}
+
+function Transcript({ item, dark = false }: { item: MediaItem; dark?: boolean }) {
+  if (!item.transcript) return null;
+  const language = isTranscriptLanguage(item.transcriptLanguage) ? TRANSCRIPT_LANGUAGES[item.transcriptLanguage] : "English";
+  return (
+    <details className={clsx("group", dark ? "border-t border-white/10 bg-ink-900 text-ink-200" : "mt-3")}>
+      <summary
+        className={clsx(
+          "flex min-h-11 cursor-pointer list-none items-center gap-2 text-sm font-medium",
+          dark ? "px-4 text-white hover:bg-white/5" : "text-brand-700",
+        )}
+      >
+        <Icon name="captions" size={18} />
+        Read the transcript ({language})
+        <Icon name="chevronRight" size={16} className="ml-auto transition-transform group-open:rotate-90" />
+      </summary>
+      <div
+        className={clsx(
+          "max-h-80 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed",
+          dark ? "px-4 pb-4" : "rounded-xl bg-white p-3 text-ink-700",
+        )}
+      >
+        {item.transcript}
+      </div>
+    </details>
+  );
 }
 
 const KIND_ICON: Record<MediaItem["kind"], IconName> = {
@@ -46,6 +76,7 @@ export function LessonMedia({ media }: { media: MediaItem[] }) {
               {formatBytes(video.sizeBytes)}
             </span>
           </figcaption>
+          <Transcript item={video} dark />
         </figure>
       ))}
 
@@ -66,6 +97,7 @@ export function LessonMedia({ media }: { media: MediaItem[] }) {
           <audio controls preload="none" className="w-full" src={`/api/media/${clip.id}`}>
             <a href={`/api/media/${clip.id}?download`}>Download the audio</a>
           </audio>
+          <Transcript item={clip} />
         </figure>
       ))}
 

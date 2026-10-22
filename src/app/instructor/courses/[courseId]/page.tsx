@@ -15,6 +15,9 @@ import { ProjectBuilder } from "@/components/courses/ProjectBuilder";
 import { SubmissionsGrader } from "@/components/courses/SubmissionsGrader";
 import { PublishToggle } from "@/components/courses/PublishToggle";
 import { SubmitReviewButton } from "@/components/courses/SubmitReviewButton";
+import { coursePosterUrl } from "@/lib/course-poster";
+import { courseMinutes } from "@/lib/course-duration";
+import { CourseDetailsEditor } from "@/components/courses/CourseDetailsEditor";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
@@ -25,6 +28,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const SECTIONS = [
+  { id: "details", label: "Details" },
   { id: "content", label: "Lessons" },
   { id: "media", label: "Media" },
   { id: "quizzes", label: "Quizzes" },
@@ -68,13 +72,16 @@ function Section({
 
 export default async function ManageCoursePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ poster?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
 
   const { courseId } = await params;
+  const { poster } = await searchParams;
   const course = await prisma.course.findUnique({
     where: { id: courseId },
     include: {
@@ -136,8 +143,8 @@ export default async function ManageCoursePage({
     <>
       <Nav />
       <main className="w-full flex-1">
-        <CourseCover title={course.title} className="text-white">
-          <div className="mx-auto max-w-5xl px-4 pb-8 pt-6">
+        <CourseCover title={course.title} posterUrl={coursePosterUrl(course)} className="text-white">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-8 pt-6">
             <Link
               href="/instructor/courses"
               className="inline-flex items-center gap-1 text-sm text-white/80 hover:text-white"
@@ -180,7 +187,7 @@ export default async function ManageCoursePage({
           aria-label="Course sections"
           className="sticky top-[61px] z-30 border-b border-ink-100 bg-white/90 backdrop-blur"
         >
-          <div className="mx-auto flex max-w-5xl gap-1 overflow-x-auto px-4 py-2 text-sm">
+          <div className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8 py-2 text-sm">
             {SECTIONS.map((s) => (
               <a
                 key={s.id}
@@ -193,7 +200,7 @@ export default async function ManageCoursePage({
           </div>
         </nav>
 
-        <div className="mx-auto flex max-w-5xl flex-col gap-10 px-4 py-8">
+        <div className="mx-auto flex max-w-7xl flex-col gap-10 px-4 sm:px-6 lg:px-8 py-8">
           {course.status === "DRAFT" && course.reviewFeedback && (
             <Alert tone="danger" title="Changes requested by a reviewer">
               {course.reviewFeedback}
@@ -220,6 +227,25 @@ export default async function ManageCoursePage({
             <Stat icon="quiz" value={quizPassRate === null ? "None yet" : `${quizPassRate}%`} label="Quiz attempts passed" />
             <Stat icon="award" value={String(certificateCount)} label="Certificates issued" />
           </div>
+
+          <Section
+            id="details"
+            title="Course details"
+            description="What learners see in the catalogue: the title, poster, level and how long the course takes."
+          >
+            <CourseDetailsEditor
+              posterFailed={poster === "failed"}
+              course={{
+                id: course.id,
+                title: course.title,
+                description: course.description,
+                category: course.category,
+                level: course.level,
+                totalMinutes: courseMinutes(course),
+                posterUrl: coursePosterUrl(course),
+              }}
+            />
+          </Section>
 
           <Section
             id="content"
@@ -263,7 +289,7 @@ export default async function ManageCoursePage({
           <Section
             id="media"
             title="Video, audio and documents"
-            description="Files are compressed on your device before upload, so learners on mobile data download a fraction of the original size."
+            description="Files are compressed on your device before upload, so learners on mobile data download a fraction of the original size. Add an English or Krio transcript to each video and audio file so the AI study buddy can explain it."
           >
             <MediaManager
               courseId={course.id}
@@ -277,6 +303,8 @@ export default async function ManageCoursePage({
                 originalSizeBytes: m.originalSizeBytes,
                 durationSeconds: m.durationSeconds,
                 lessonId: m.lessonId,
+                transcript: m.transcript,
+                transcriptLanguage: m.transcriptLanguage,
               }))}
             />
           </Section>

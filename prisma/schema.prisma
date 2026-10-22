@@ -60,6 +60,7 @@ model User {
   uploadedMedia       CourseMedia[]
   attendanceRecords   AttendanceRecord[]
   applications        Application[]
+  tutorMessages       TutorMessage[]
 
   @@map("users")
 }
@@ -106,30 +107,37 @@ enum SubmissionStatus {
 }
 
 model Course {
-  id             String       @id @default(cuid())
-  title          String
-  slug           String       @unique
-  description    String
-  category       String
-  level          String
-  estimatedHours Int          @default(1)
-  status         CourseStatus @default(DRAFT)
+  id              String       @id @default(cuid())
+  title           String
+  slug            String       @unique
+  description     String
+  category        String
+  level           String
+  // Whole hours, kept for older code and listings; durationMinutes is
+  // the precise length set on the course form (hours and minutes).
+  estimatedHours  Int          @default(1)
+  durationMinutes Int?
+  // Storage key of the course poster image (see api/courses/[courseId]/poster).
+  posterKey       String?
+  posterUpdatedAt DateTime?
+  status          CourseStatus @default(DRAFT)
   // Set by a reviewer when sending a course back to Draft (see
   // api/courses/[courseId]/review/route.ts). Cleared on next submission.
-  reviewFeedback String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  reviewFeedback  String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   instructorId String
   instructor   User   @relation("InstructorCourses", fields: [instructorId], references: [id])
 
-  modules      Module[]
-  enrolments   Enrolment[]
-  quizzes      Quiz[]
-  project      Project?
-  media        CourseMedia[]
-  certificates Certificate[]
-  cohorts      Cohort[]
+  modules       Module[]
+  enrolments    Enrolment[]
+  quizzes       Quiz[]
+  project       Project?
+  media         CourseMedia[]
+  certificates  Certificate[]
+  cohorts       Cohort[]
+  tutorMessages TutorMessage[]
 
   @@map("courses")
 }
@@ -635,28 +643,57 @@ enum MediaStatus {
 }
 
 model CourseMedia {
-  id                String      @id @default(cuid())
-  courseId          String
-  course            Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  id                 String      @id @default(cuid())
+  courseId           String
+  course             Course      @relation(fields: [courseId], references: [id], onDelete: Cascade)
   // Null = a course-wide resource; set = shown on that lesson.
-  lessonId          String?
-  lesson            Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
-  kind              MediaKind
-  status            MediaStatus @default(UPLOADING)
-  title             String
-  fileName          String
-  mimeType          String
+  lessonId           String?
+  lesson             Lesson?     @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+  kind               MediaKind
+  status             MediaStatus @default(UPLOADING)
+  title              String
+  fileName           String
+  mimeType           String
   // "gzip" when the stored bytes are gzip-compressed (documents only).
-  contentEncoding   String?
-  sizeBytes         Int
-  originalSizeBytes Int
-  durationSeconds   Int?
-  storageKey        String      @unique
-  uploadedById      String
-  uploadedBy        User        @relation(fields: [uploadedById], references: [id])
-  createdAt         DateTime    @default(now())
+  contentEncoding    String?
+  sizeBytes          Int
+  originalSizeBytes  Int
+  durationSeconds    Int?
+  // What is said in a video or audio file, in English or Krio, so the AI
+  // study buddy can explain it (see src/lib/tutor.ts). Learners can read
+  // it too.
+  transcript         String?
+  transcriptLanguage String?
+  storageKey         String      @unique
+  uploadedById       String
+  uploadedBy         User        @relation(fields: [uploadedById], references: [id])
+  createdAt          DateTime    @default(now())
 
   @@index([courseId])
   @@index([lessonId])
   @@map("course_media")
+}
+
+// ---------------------------------------------------------------------
+// AI study buddy — one running conversation per learner per course.
+// See src/lib/tutor.ts and api/courses/[courseId]/tutor.
+// ---------------------------------------------------------------------
+
+enum TutorRole {
+  USER
+  ASSISTANT
+}
+
+model TutorMessage {
+  id        String    @id @default(cuid())
+  courseId  String
+  course    Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TutorRole
+  content   String
+  createdAt DateTime  @default(now())
+
+  @@index([courseId, userId, createdAt])
+  @@map("tutor_messages")
 }

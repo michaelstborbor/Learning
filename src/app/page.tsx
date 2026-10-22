@@ -4,6 +4,8 @@ import { CourseCard } from "@/components/ui/CourseCard";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { prisma } from "@/lib/db";
+import { formatCourseDuration } from "@/lib/course-duration";
+import { coursePosterUrl } from "@/lib/course-poster";
 
 // Live counts and featured courses change after deploy.
 export const dynamic = "force-dynamic";
@@ -77,7 +79,7 @@ export default async function Home() {
       <Nav />
       <main className="w-full flex-1">
         <section className="signal-field overflow-hidden text-white">
-          <div className="mx-auto grid max-w-6xl items-center gap-16 px-4 pb-24 pt-14 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-28">
+          <div className="mx-auto grid max-w-7xl items-center gap-16 px-4 sm:px-6 lg:px-8 pb-24 pt-14 sm:pt-20 lg:grid-cols-[1.15fr_1fr] lg:pb-28">
             <div>
               <h1 className="font-display text-[clamp(2.5rem,1.6rem+3.4vw,4rem)] font-bold leading-[1.02] tracking-tight text-white">
                 Learn practical skills.
@@ -124,7 +126,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
           <h2 className="max-w-xl font-display text-3xl font-bold text-ink-900">
             Finishing a video isn&apos;t the same as being able to do the job
           </h2>
@@ -149,14 +151,14 @@ export default async function Home() {
 
         {featured.length > 0 && (
           <section className="border-y border-brand-100 bg-white">
-            <div className="mx-auto max-w-6xl px-4 py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <h2 className="font-display text-3xl font-bold text-ink-900">New courses</h2>
                 <Link href="/courses" className="text-sm font-semibold text-brand-600 hover:underline">
                   See all {courseCount} courses
                 </Link>
               </div>
-              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {featured.map((course) => (
                   <Link key={course.id} href={`/courses/${course.slug}`} className="rounded-xl">
                     <CourseCard
@@ -164,7 +166,8 @@ export default async function Home() {
                       category={course.category}
                       level={course.level}
                       description={course.description}
-                      durationLabel={`${course.estimatedHours}h`}
+                      durationLabel={formatCourseDuration(course)}
+                    posterUrl={coursePosterUrl(course)}
                       lessonCount={course.modules.reduce((sum, m) => sum + m._count.lessons, 0)}
                       certificateEligible={Boolean(course.project?.skillId)}
                     />
@@ -175,7 +178,7 @@ export default async function Home() {
           </section>
         )}
 
-        <section className="mx-auto max-w-6xl px-4 py-16 sm:py-20">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
           <div className="grid gap-10 lg:grid-cols-3">
             {[
               {

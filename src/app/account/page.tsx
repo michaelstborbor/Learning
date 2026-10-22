@@ -33,7 +33,7 @@ export default async function AccountPage({
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="font-display text-2xl font-bold text-ink-900">
           Your account
         </h1>

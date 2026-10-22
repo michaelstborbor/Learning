@@ -32,7 +32,7 @@ export default async function GradesPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 sm:px-6 lg:px-8 py-10">
         <h1 className="font-display text-3xl font-bold text-ink-900">Grades</h1>
         <p className="mt-1 text-ink-500">
           Your best score on every quiz and project. The course grade weights them the way your instructor set.

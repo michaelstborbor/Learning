@@ -51,7 +51,7 @@ export default async function OpportunitiesPage({
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 sm:px-6 lg:px-8 py-12">
         <h1 className="font-display text-2xl font-bold text-ink-900">Opportunities</h1>
         <p className="mt-1 text-ink-500">
           Internships, jobs, and mentorships posted by organizations on EliteSkills Academy.

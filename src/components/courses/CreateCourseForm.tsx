@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { DurationFields, PosterPicker } from "./CourseFormParts";
 
 export function CreateCourseForm() {
   const router = useRouter();
@@ -12,7 +13,9 @@ export function CreateCourseForm() {
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
   const [level, setLevel] = useState("Beginner");
-  const [estimatedHours, setEstimatedHours] = useState(4);
+  const [hours, setHours] = useState(4);
+  const [minutes, setMinutes] = useState(0);
+  const [poster, setPoster] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
@@ -20,17 +23,32 @@ export function CreateCourseForm() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
+    const durationMinutes = hours * 60 + minutes;
+    if (durationMinutes < 5) {
+      setError("Set a duration of at least 5 minutes.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/courses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, category, level, estimatedHours }),
+        body: JSON.stringify({ title, description, category, level, durationMinutes }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error ?? "Something went wrong. Please try again.");
         return;
+      }
+      if (poster) {
+        // The course exists by now; a poster failure shouldn't lose it.
+        try {
+          const { shrinkPoster, uploadPoster } = await import("@/lib/poster-image");
+          await uploadPoster(data.id, await shrinkPoster(poster));
+        } catch {
+          router.push(`/instructor/courses/${data.id}?poster=failed#details`);
+          return;
+        }
       }
       router.push(`/instructor/courses/${data.id}`);
     } catch {
@@ -45,29 +63,37 @@ export function CreateCourseForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4 rounded-md border border-ink-100 p-4">
+    <form
+      onSubmit={handleSubmit}
+      className="rise-in flex w-full basis-full flex-col gap-5 rounded-2xl border border-ink-100 bg-white p-5 shadow-raised sm:p-6"
+    >
+      <h2 className="font-display text-lg font-semibold text-ink-900">New course</h2>
       {error && <Alert tone="danger" title={error} />}
-      <Field id="title" label="Course title" value={title} onChange={(e) => setTitle(e.target.value)} required />
-      <Field
-        id="description"
-        label="Short description"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        required
-      />
-      <div className="grid grid-cols-2 gap-4">
-        <Field id="category" label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required />
-        <Field id="level" label="Level" value={level} onChange={(e) => setLevel(e.target.value)} required />
+      <div className="grid gap-5 lg:grid-cols-[1fr_minmax(0,22rem)]">
+        <div className="flex flex-col gap-4">
+          <Field id="title" label="Course title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+          <Field
+            id="description"
+            label="Short description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field id="category" label="Category" value={category} onChange={(e) => setCategory(e.target.value)} required />
+            <Field id="level" label="Level" value={level} onChange={(e) => setLevel(e.target.value)} required />
+          </div>
+          <DurationFields
+            hours={hours}
+            minutes={minutes}
+            onChange={(h, m) => {
+              setHours(h);
+              setMinutes(m);
+            }}
+          />
+        </div>
+        <PosterPicker onChange={setPoster} disabled={submitting} />
       </div>
-      <Field
-        id="estimatedHours"
-        label="Estimated hours"
-        type="number"
-        min={1}
-        value={estimatedHours}
-        onChange={(e) => setEstimatedHours(Number(e.target.value))}
-        required
-      />
       <div className="flex gap-3">
         <Button type="submit" disabled={submitting}>
           {submitting ? "Creating…" : "Create draft course"}

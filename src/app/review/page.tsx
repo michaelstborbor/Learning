@@ -25,7 +25,7 @@ export default async function ReviewQueuePage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-12">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-12 sm:px-6 lg:px-8">
         <h1 className="font-display text-2xl font-bold text-ink-900">Review queue</h1>
         <p className="mt-1 text-ink-500">
           Courses an instructor has submitted, waiting for a decision.
