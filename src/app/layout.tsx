@@ -6,6 +6,7 @@ import "./globals.css";
 import { SkipLink } from "@/components/ui/SkipLink";
 import { Footer } from "@/components/ui/Footer";
 import { PrivacyAnalytics } from "@/components/ui/PrivacyAnalytics";
+import { SupportFab } from "@/components/support/SupportFab";
 import { appBaseUrl } from "@/lib/app-url";
 
 // System fonts for body text (zero network cost); Space Grotesk is
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <SkipLink />
         {children}
         <Footer />
+        <SupportFab />
         <PrivacyAnalytics />
       </body>
     </html>

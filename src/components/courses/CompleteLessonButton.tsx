@@ -29,7 +29,7 @@ export function CompleteLessonButton({
     }
   }
 
-  if (done) {
+  if (done || alreadyComplete) {
     return (
       <p className="rise-in inline-flex min-h-11 items-center gap-2 rounded-lg bg-brand-50 px-4 text-sm font-semibold text-brand-700" role="status">
         <Icon name="check" size={18} /> Lesson complete
