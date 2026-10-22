@@ -11,7 +11,7 @@ export interface NavItem {
 
 // Client-side only to know the current path, so the active section is
 // highlighted (and announced with aria-current) on every page.
-export function NavLinks({ items, layout }: { items: NavItem[]; layout: "bar" | "menu" }) {
+export function NavLinks({ items, layout }: { items: NavItem[]; layout: "bar" | "menu" | "footer" }) {
   const pathname = usePathname();
 
   return (
@@ -25,10 +25,14 @@ export function NavLinks({ items, layout }: { items: NavItem[]; layout: "bar" | 
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={clsx(
-              layout === "bar"
-                ? "nav-link rounded-md py-1 hover:text-brand-600"
-                : "rounded-lg px-3 py-2.5 hover:bg-brand-50",
-              active && (layout === "bar" ? "font-semibold text-brand-700" : "bg-brand-50 font-semibold text-brand-700"),
+              layout === "bar" && "nav-link rounded-md py-1 hover:text-brand-600",
+              layout === "menu" && "rounded-lg px-3 py-2.5 hover:bg-brand-50",
+              // Same underline effect as the bar, recoloured for the dark footer.
+              layout === "footer" &&
+                "nav-link rounded-md py-1 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white",
+              active && layout === "bar" && "font-semibold text-brand-700",
+              active && layout === "menu" && "bg-brand-50 font-semibold text-brand-700",
+              active && layout === "footer" && "font-semibold text-white",
             )}
           >
             {item.label}

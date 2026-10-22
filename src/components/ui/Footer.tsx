@@ -13,35 +13,47 @@ const LINKS: NavItem[] = [
   { href: "/terms", label: "Terms" },
 ];
 
-// Mirrors the header: same translucent white bar, logo and name, link
-// underline effect and active-page highlight, so the page is framed by one
-// consistent theme top and bottom. Extra bottom padding keeps the floating
-// "Support us" button from covering the footer text.
+// The page's anchor: deep teal (brand-900) under the orange highlight edge,
+// with the same signal arcs as the course covers and the logo radiating from
+// the corner, so the footer reads as part of the brand rather than a grey
+// afterthought. Text is brand-100 and white on #0b3b38 (well above 4.5:1).
+// Extra bottom padding keeps the floating "Support us" button from covering
+// the footer text.
+const FOOTER_BACKGROUND = {
+  backgroundColor: "var(--color-brand-900)",
+  backgroundImage:
+    "radial-gradient(circle at 100% 100%, rgb(13 148 136 / 0.45), transparent 55%), repeating-radial-gradient(circle at 100% 100%, transparent 0 28px, rgb(94 234 212 / 0.12) 28px 29.5px)",
+};
+
 export function Footer() {
   return (
-    <footer className="mt-auto border-t border-brand-100/80 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/75">
-      <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 sm:px-6 lg:px-8 pt-6 pb-24">
+    <footer className="mt-auto border-t-4 border-highlight-500 text-brand-100" style={FOOTER_BACKGROUND}>
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 sm:px-6 lg:px-8 pt-8 pb-24">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-          <Link href="/" className="group flex items-center gap-2.5 self-start">
-            {/* Decorative: the visible name next to it already names the link. */}
+          <Link
+            href="/"
+            className="group flex items-center gap-2.5 self-start rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
+          >
+            {/* Decorative: the visible name next to it already names the link.
+                The white ring keeps the blue logo crisp on the dark teal. */}
             <Image
               src="/logo.png"
               alt=""
               width={40}
               height={40}
-              className="h-10 w-10 shrink-0 transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
+              className="h-10 w-10 shrink-0 rounded-full bg-white ring-2 ring-white transition-transform duration-300 ease-out group-hover:-rotate-6 group-hover:scale-110"
             />
-            <span className="font-display text-base font-bold leading-tight text-ink-900 sm:text-lg">
+            <span className="font-display text-base font-bold leading-tight text-white sm:text-lg">
               EliteSkills Academy
             </span>
           </Link>
 
-          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-ink-700">
-            <NavLinks items={LINKS} layout="bar" />
+          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+            <NavLinks items={LINKS} layout="footer" />
           </nav>
         </div>
 
-        <p className="border-t border-brand-100/80 pt-4 text-sm text-ink-500">
+        <p className="border-t border-white/15 pt-4 text-sm text-brand-200">
           EliteSkills Academy, by Elite Network Limited. Free and open source.
         </p>
       </div>
