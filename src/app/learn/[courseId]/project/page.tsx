@@ -55,6 +55,7 @@ export default async function ProjectPage({
             submissions={submissions.map((s: any) => ({
               id: s.id,
               submissionUrl: s.submissionUrl,
+              fileName: s.fileName,
               status: s.status,
               score: s.score,
               feedback: s.feedback,

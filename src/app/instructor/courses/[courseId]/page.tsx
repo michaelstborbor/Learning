@@ -393,6 +393,7 @@ export default async function ManageCoursePage({
                   id: s.id,
                   learnerName: s.learner.fullName,
                   submissionUrl: s.submissionUrl,
+                  fileName: s.fileName,
                   notes: s.notes,
                   submittedAt: s.submittedAt.toISOString(),
                 }))}

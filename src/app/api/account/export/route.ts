@@ -56,6 +56,7 @@ export async function GET() {
       select: {
         project: { select: { title: true } },
         submissionUrl: true,
+        fileName: true,
         notes: true,
         status: true,
         score: true,
