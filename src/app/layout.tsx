@@ -5,12 +5,13 @@ import "@fontsource/space-grotesk/700.css";
 import "./globals.css";
 import { SkipLink } from "@/components/ui/SkipLink";
 import { Footer } from "@/components/ui/Footer";
+import { appBaseUrl } from "@/lib/app-url";
 
 // System fonts for body text (zero network cost); Space Grotesk is
 // self-hosted (via @fontsource, not a Google Fonts CDN call) and used only
 // for headings/display text — see DESIGN_SYSTEM.md for the reasoning.
 
-const APP_URL = process.env.APP_BASE_URL ?? "http://localhost:3000";
+const APP_URL = appBaseUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(APP_URL),

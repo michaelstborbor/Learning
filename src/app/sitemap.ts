@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/db";
+import { appBaseUrl } from "@/lib/app-url";
 
 // Same reasoning as the course/opportunity pages (see ARCHITECTURE.md):
 // content changes after deploy, so the sitemap must never be frozen as a
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 // same reasoning as the "force-dynamic" course/opportunity pages
 // themselves — see ARCHITECTURE.md).
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const baseUrl = appBaseUrl();
 
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, changeFrequency: "weekly", priority: 1 },

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { appBaseUrl } from "@/lib/app-url";
 
 // "Authenticated dashboards should not be indexed" (PHASE0_BLUEPRINT.md,
 // Phase 27). This is the primary mechanism for that — every route a
@@ -8,7 +9,7 @@ import type { MetadataRoute } from "next";
 // once here covers all ~25 protected routes instead of needing a change to
 // every individual page file.)
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.APP_BASE_URL ?? "http://localhost:3000";
+  const baseUrl = appBaseUrl();
 
   return {
     rules: {

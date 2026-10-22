@@ -37,7 +37,7 @@ export function maxUploadBytes(): number {
 // ---- Local disk -----------------------------------------------------------
 
 function localRoot(): string {
-  return path.resolve(process.env.MEDIA_STORAGE_DIR ?? path.join(process.cwd(), "storage", "media"));
+  return path.resolve(/*turbopackIgnore: true*/ process.env.MEDIA_STORAGE_DIR ?? path.join(process.cwd(), "storage", "media"));
 }
 
 function localPath(key: string): string {
@@ -73,14 +73,14 @@ export async function writeLocal(
 
 export async function localSize(key: string): Promise<number | null> {
   try {
-    return (await stat(localPath(key))).size;
+    return (await stat(/*turbopackIgnore: true*/ localPath(key))).size;
   } catch {
     return null;
   }
 }
 
 export function readLocal(key: string, range?: { start: number; end: number }) {
-  const stream = createReadStream(localPath(key), range);
+  const stream = createReadStream(/*turbopackIgnore: true*/ localPath(key), range);
   return Readable.toWeb(stream) as ReadableStream<Uint8Array>;
 }
 
