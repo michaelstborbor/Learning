@@ -147,10 +147,7 @@ export default async function ManageCoursePage({
   const lessonOptions = course.modules.flatMap((m, mi) =>
     m.lessons.map((l, li) => ({ id: l.id, label: `${mi + 1}.${li + 1} ${l.title}` })),
   );
-  const mediaCountByLesson = new Map<string, number>();
-  course.media.forEach((m) => {
-    if (m.lessonId) mediaCountByLesson.set(m.lessonId, (mediaCountByLesson.get(m.lessonId) ?? 0) + 1);
-  });
+  const moduleOptions = course.modules.map((m, mi) => ({ id: m.id, label: `Module ${mi + 1}: ${m.title}` }));
 
   return (
     <>
@@ -278,9 +275,9 @@ export default async function ManageCoursePage({
           <Section
             id="content"
             title="Modules and lessons"
-            description="Each lesson can carry its own video, audio and documents. Add them in Media below."
+            description="Add video or audio to any module or lesson with its button. Documents, transcripts and removing files are in Media below."
           >
-            <CourseOutline courseId={course.id} modules={course.modules} mediaCountByLesson={mediaCountByLesson} />
+            <CourseOutline courseId={course.id} modules={course.modules} media={course.media} />
           </Section>
 
           <Section
@@ -291,6 +288,7 @@ export default async function ManageCoursePage({
             <MediaManager
               courseId={course.id}
               lessons={lessonOptions}
+              modules={moduleOptions}
               media={course.media.map((m) => ({
                 id: m.id,
                 kind: m.kind,
@@ -300,6 +298,7 @@ export default async function ManageCoursePage({
                 originalSizeBytes: m.originalSizeBytes,
                 durationSeconds: m.durationSeconds,
                 lessonId: m.lessonId,
+                moduleId: m.moduleId,
                 transcript: m.transcript,
                 transcriptLanguage: m.transcriptLanguage,
               }))}

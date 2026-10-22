@@ -75,10 +75,7 @@ export default async function UpdateCoursePage({ params }: { params: Promise<{ c
   const lessonOptions = course.modules.flatMap((m, mi) =>
     m.lessons.map((l, li) => ({ id: l.id, label: `${mi + 1}.${li + 1} ${l.title}` })),
   );
-  const mediaCountByLesson = new Map<string, number>();
-  course.media.forEach((m) => {
-    if (m.lessonId) mediaCountByLesson.set(m.lessonId, (mediaCountByLesson.get(m.lessonId) ?? 0) + 1);
-  });
+  const moduleOptions = course.modules.map((m, mi) => ({ id: m.id, label: `Module ${mi + 1}: ${m.title}` }));
 
   return (
     <>
@@ -161,9 +158,9 @@ export default async function UpdateCoursePage({ params }: { params: Promise<{ c
           <Section
             id="content"
             title="Modules and lessons"
-            description="Rename a module, edit a lesson's title and text, or add new modules and lessons."
+            description="Rename a module, edit a lesson's title and text, add video or audio to any module or lesson, or add new modules and lessons."
           >
-            <CourseOutline courseId={course.id} modules={course.modules} mediaCountByLesson={mediaCountByLesson} />
+            <CourseOutline courseId={course.id} modules={course.modules} media={course.media} />
           </Section>
 
           <Section
@@ -174,6 +171,7 @@ export default async function UpdateCoursePage({ params }: { params: Promise<{ c
             <MediaManager
               courseId={course.id}
               lessons={lessonOptions}
+              modules={moduleOptions}
               media={course.media.map((m) => ({
                 id: m.id,
                 kind: m.kind,
@@ -183,6 +181,7 @@ export default async function UpdateCoursePage({ params }: { params: Promise<{ c
                 originalSizeBytes: m.originalSizeBytes,
                 durationSeconds: m.durationSeconds,
                 lessonId: m.lessonId,
+                moduleId: m.moduleId,
                 transcript: m.transcript,
                 transcriptLanguage: m.transcriptLanguage,
               }))}

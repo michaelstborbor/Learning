@@ -12,6 +12,7 @@ const createSchema = z.object({
   kind: z.enum(["VIDEO", "AUDIO", "DOCUMENT"]),
   title: z.string().trim().min(1, "Give the file a title.").max(200),
   lessonId: z.string().max(40).optional().nullable(),
+  moduleId: z.string().max(40).optional().nullable(),
   fileName: z.string().trim().min(1).max(255),
   mimeType: z.string().trim().min(3).max(150),
   contentEncoding: z.enum(["gzip"]).optional().nullable(),
@@ -80,6 +81,18 @@ export async function POST(
       { status: 413 },
     );
   }
+  if (input.lessonId && input.moduleId) {
+    return NextResponse.json({ error: "Attach the file to a lesson or a module, not both." }, { status: 400 });
+  }
+  if (input.moduleId) {
+    const courseModule = await prisma.module.findFirst({
+      where: { id: input.moduleId, courseId },
+      select: { id: true },
+    });
+    if (!courseModule) {
+      return NextResponse.json({ error: "That module isn't part of this course." }, { status: 400 });
+    }
+  }
   if (input.lessonId) {
     const lesson = await prisma.lesson.findFirst({
       where: { id: input.lessonId, module: { courseId } },
@@ -99,6 +112,7 @@ export async function POST(
     data: {
       courseId,
       lessonId: input.lessonId || null,
+      moduleId: input.moduleId || null,
       kind: input.kind,
       title: input.title,
       fileName,

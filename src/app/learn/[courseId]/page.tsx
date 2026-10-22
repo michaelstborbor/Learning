@@ -108,7 +108,7 @@ export default async function LearnCoursePage({
     set.add(m.kind);
     mediaKindsByLesson.set(m.lessonId, set);
   });
-  const courseResources = course.media.filter((m) => !m.lessonId);
+  const courseResources = course.media.filter((m) => !m.lessonId && !m.moduleId);
   const finalQuizzes = course.quizzes.filter((q) => !q.moduleId);
 
   return (
@@ -160,6 +160,7 @@ export default async function LearnCoursePage({
             {course.modules.map((moduleItem, index) => {
               const done = moduleItem.lessons.filter((l) => completedLessonIds.has(l.id)).length;
               const moduleQuizzes = course.quizzes.filter((q) => q.moduleId === moduleItem.id);
+              const moduleMedia = course.media.filter((m) => m.moduleId === moduleItem.id);
               return (
                 <section key={moduleItem.id} className="rounded-2xl border border-ink-100 bg-white p-4 shadow-raised sm:p-5">
                   <div className="flex items-center justify-between gap-3">
@@ -204,6 +205,12 @@ export default async function LearnCoursePage({
                       );
                     })}
                   </ol>
+                  {moduleMedia.length > 0 && (
+                    <div className="mt-3 rounded-xl bg-ink-50 px-3 py-2">
+                      <p className="text-xs font-semibold text-ink-500">Video and audio for this module</p>
+                      <MediaResourceList media={moduleMedia} compact />
+                    </div>
+                  )}
                   {moduleQuizzes.length > 0 && (
                     <div className="mt-3 flex flex-col gap-2">
                       {moduleQuizzes.map((quiz) => (
