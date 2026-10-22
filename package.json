@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:seed": "prisma db seed",
+    "content:install": "tsx prisma/content/install.ts",
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy"
   },
