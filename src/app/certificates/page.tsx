@@ -25,15 +25,15 @@ export default async function CertificatesPage() {
           Your certificates
         </h1>
         <p className="mt-1 text-ink-500">
-          Issued automatically when you complete a course and pass its
-          competency requirements.
+          Earned when your course grade across the quizzes and the project
+          reaches 70% or more. Each one downloads as an A4 PDF.
         </p>
 
         {certificates.length === 0 ? (
           <div className="mt-8">
             <EmptyState
               title="No certificates yet"
-              description="Complete a certificate-eligible course — including its quiz and practical project — to earn one."
+              description="Reach a course grade of 70% or more across a course's quizzes and project to earn one."
             />
           </div>
         ) : (
@@ -53,10 +53,10 @@ export default async function CertificatesPage() {
                     {certificate.status === "ACTIVE" ? "Active" : "Revoked"}
                   </Badge>
                   <Link
-                    href={`/verify?id=${certificate.certificateNumber}`}
-                    className="text-sm text-brand-600 hover:underline"
+                    href={`/certificates/${certificate.id}`}
+                    className="text-sm font-semibold text-brand-600 hover:underline"
                   >
-                    View
+                    {certificate.status === "ACTIVE" ? "View and download" : "View"}
                   </Link>
                 </div>
               </Card>

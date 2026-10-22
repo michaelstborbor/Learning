@@ -1,5 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma } from "@/lib/db";
+import { getCourseGrades } from "@/lib/gradebook";
+import { certificateEligibility } from "@/lib/certificate-eligibility";
 
 // No 0/O or 1/I, so a number read out or typed in by hand can't be misread.
 const CERTIFICATE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
@@ -14,33 +16,28 @@ export function generateCertificateNumber(): string {
 }
 
 /**
- * Checks whether a learner has met a course's real completion + competency
- * criteria, and issues a certificate if so and one doesn't already exist.
+ * Checks whether a learner has earned a course's certificate, and issues
+ * one if so and one doesn't already exist. Returns the learner's
+ * certificate (new or existing), or null when they don't qualify yet.
  *
- * Called after every event that could complete the criteria — lesson
- * completion, a passing quiz attempt, a passing project grade — rather than
- * from a single place, because any of the three could be the final piece.
- * This is intentionally the ONLY place a Certificate row gets created, so
- * "what counts as earning a certificate" lives in one auditable function,
- * not scattered across route handlers.
+ * Called after every event that could complete the criteria (lesson
+ * completion, a quiz attempt, a project grade) and when the learner
+ * presses "Get your certificate". This is intentionally the ONLY place a
+ * Certificate row gets created, so "what counts as earning a certificate"
+ * lives in one auditable function, not scattered across route handlers.
  *
- * Criteria: 100% lesson progress, AND a passed QuizAttempt on every quiz
- * the course has, AND a passing graded ProjectSubmission if the course has a
- * project. A course with neither assessment certifies on completion alone
- * — most courses are expected to have at least one, but the check doesn't
- * assume it.
+ * Criteria (see certificate-eligibility.ts): every quiz, the final quiz and
+ * the project have a score, and the weighted course grade is at least 70%.
+ * A course with no assessments certifies once every lesson is complete.
  */
-export async function maybeIssueCertificate(
-  learnerId: string,
-  courseId: string,
-): Promise<void> {
+export async function maybeIssueCertificate(learnerId: string, courseId: string) {
   const existing = await prisma.certificate.findUnique({
     where: { learnerId_courseId: { learnerId, courseId } },
   });
-  // Deliberately don't re-issue over a revoked certificate automatically —
+  // Deliberately don't re-issue over a revoked certificate automatically:
   // a revocation was a human decision (Rule 5) and shouldn't be silently
   // undone by the learner re-triggering an event.
-  if (existing) return;
+  if (existing) return existing;
 
   const [course, enrolment] = await Promise.all([
     prisma.course.findUnique({ where: { id: courseId } }),
@@ -48,36 +45,11 @@ export async function maybeIssueCertificate(
       where: { learnerId_courseId: { learnerId, courseId } },
     }),
   ]);
-  if (!course || !enrolment) return;
-  if (enrolment.progressPercent < 100) return;
+  if (!course || !enrolment) return null;
 
-  const quizzes = await prisma.quiz.findMany({ where: { courseId }, select: { id: true } });
-  if (quizzes.length > 0) {
-    const passedQuizIds = await prisma.quizAttempt.findMany({
-      where: {
-        quizId: { in: quizzes.map((q) => q.id) },
-        learnerId,
-        status: "SUBMITTED",
-        passed: true,
-      },
-      distinct: ["quizId"],
-      select: { quizId: true },
-    });
-    if (passedQuizIds.length < quizzes.length) return;
-  }
-
-  const project = await prisma.project.findUnique({ where: { courseId } });
-  if (project) {
-    const passedSubmission = await prisma.projectSubmission.findFirst({
-      where: {
-        projectId: project.id,
-        learnerId,
-        status: "GRADED",
-        score: { gte: 70 },
-      },
-    });
-    if (!passedSubmission) return;
-  }
+  const { grades } = await getCourseGrades(courseId, [learnerId]);
+  const eligibility = certificateEligibility(grades.get(learnerId), enrolment.progressPercent);
+  if (eligibility.status !== "qualified") return null;
 
   // Guard against a slim race (e.g. two events firing near-simultaneously)
   // on the unique certificate number rather than assuming single-writer.
@@ -86,22 +58,35 @@ export async function maybeIssueCertificate(
     certificateNumber = generateCertificateNumber();
   }
 
-  await prisma.$transaction(async (tx) => {
-    const certificate = await tx.certificate.create({
-      data: {
-        certificateNumber,
-        learnerId,
-        courseId,
-        competencyStatement: `Demonstrated competency in ${course.title}.`,
-      },
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const certificate = await tx.certificate.create({
+        data: {
+          certificateNumber,
+          learnerId,
+          courseId,
+          competencyStatement: `Successfully completed ${course.title}.`,
+        },
+      });
+      await tx.certificateAuditLog.create({
+        data: {
+          certificateId: certificate.id,
+          action: "ISSUED",
+          performedById: null,
+          notes:
+            eligibility.percent === null
+              ? "Issued automatically on completing every lesson."
+              : `Issued automatically on reaching a course grade of ${eligibility.percent}%.`,
+        },
+      });
+      return certificate;
     });
-    await tx.certificateAuditLog.create({
-      data: {
-        certificateId: certificate.id,
-        action: "ISSUED",
-        performedById: null,
-        notes: "Issued automatically on meeting course completion and competency criteria.",
-      },
+  } catch (error) {
+    // Two requests raced and the other one issued it: hand that one back.
+    const raced = await prisma.certificate.findUnique({
+      where: { learnerId_courseId: { learnerId, courseId } },
     });
-  });
+    if (raced) return raced;
+    throw error;
+  }
 }

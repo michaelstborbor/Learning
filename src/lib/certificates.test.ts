@@ -15,51 +15,53 @@ const mockPrisma = {
   enrolment: {
     findUnique: vi.fn(),
   },
-  quiz: {
-    findMany: vi.fn(),
-  },
-  quizAttempt: {
-    findMany: vi.fn(),
-  },
-  project: {
-    findUnique: vi.fn(),
-  },
-  projectSubmission: {
-    findFirst: vi.fn(),
-  },
   $transaction: vi.fn(),
 };
+const mockGetCourseGrades = vi.fn();
 
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
+vi.mock("@/lib/gradebook", () => ({ getCourseGrades: mockGetCourseGrades }));
 
-// Imported after the mock is registered, per vi.mock hoisting semantics.
+// Imported after the mocks are registered, per vi.mock hoisting semantics.
 const { maybeIssueCertificate, generateCertificateNumber } = await import("./certificates");
+const { computeCourseGrade } = await vi.importActual<typeof import("./gradebook")>("./gradebook");
 
 const LEARNER_ID = "learner-1";
 const COURSE_ID = "course-1";
 
-function resetAllMocks() {
-  mockPrisma.certificate.findUnique.mockReset();
-  mockPrisma.course.findUnique.mockReset();
-  mockPrisma.enrolment.findUnique.mockReset();
-  mockPrisma.quiz.findMany.mockReset();
-  mockPrisma.quizAttempt.findMany.mockReset();
-  mockPrisma.project.findUnique.mockReset();
-  mockPrisma.projectSubmission.findFirst.mockReset();
-  mockPrisma.$transaction.mockReset();
+type Item = Parameters<typeof computeCourseGrade>[0][number];
+function item(id: string, score: number | null, weight = 1, kind: Item["kind"] = "quiz"): Item {
+  return { id, kind, title: id, weight, score, passed: score !== null && score >= 70, attempts: score === null ? 0 : 1 };
+}
+function gradesWith(items: Item[]) {
+  mockGetCourseGrades.mockResolvedValueOnce({ grades: new Map([[LEARNER_ID, computeCourseGrade(items)]]) });
+}
+function captureTransaction() {
+  const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert", certificateNumber: "ESA-NEW" });
+  const txAuditLogCreate = vi.fn().mockResolvedValue({ id: "audit-1" });
+  mockPrisma.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
+    callback({
+      certificate: { create: txCertificateCreate },
+      certificateAuditLog: { create: txAuditLogCreate },
+    }),
+  );
+  return { txCertificateCreate, txAuditLogCreate };
 }
 
 describe("maybeIssueCertificate", () => {
   beforeEach(() => {
-    resetAllMocks();
+    mockPrisma.certificate.findUnique.mockReset();
+    mockPrisma.course.findUnique.mockReset();
+    mockPrisma.enrolment.findUnique.mockReset();
+    mockPrisma.$transaction.mockReset();
+    mockGetCourseGrades.mockReset();
     mockPrisma.course.findUnique.mockResolvedValue({ id: COURSE_ID, title: "Test Course" });
   });
 
-  it("does nothing if a certificate already exists (never re-issues)", async () => {
+  it("returns the existing certificate and never re-issues", async () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce({ id: "existing-cert" });
 
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
+    expect(await maybeIssueCertificate(LEARNER_ID, COURSE_ID)).toEqual({ id: "existing-cert" });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
@@ -67,106 +69,58 @@ describe("maybeIssueCertificate", () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce(null);
 
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
+    expect(await maybeIssueCertificate(LEARNER_ID, COURSE_ID)).toBeNull();
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("does nothing if lesson progress is under 100% — Rule 1/2: completion alone isn't enough, but it IS required", async () => {
-    mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
-    mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 99 });
-
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
-  it("does nothing if the course has a quiz but no passed attempt exists", async () => {
+  it("does nothing while the project is still waiting for a grade", async () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }]);
-    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([]); // no passing attempt
-    mockPrisma.project.findUnique.mockResolvedValueOnce(null); // no project on this course
+    gradesWith([item("quiz-1", 100), item("final", 100, 2), item("project", null, 1, "project")]);
 
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
+    expect(await maybeIssueCertificate(LEARNER_ID, COURSE_ID)).toBeNull();
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("does nothing if the course has several quizzes and only some have been passed", async () => {
+  it("does nothing when the course grade is under 70%", async () => {
     mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }, { id: "quiz-2" }]);
-    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([{ quizId: "quiz-1" }]);
-    mockPrisma.project.findUnique.mockResolvedValueOnce(null);
+    gradesWith([item("quiz-1", 60), item("final", 65, 2), item("project", 80, 1, "project")]); // 67.5%
 
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
+    expect(await maybeIssueCertificate(LEARNER_ID, COURSE_ID)).toBeNull();
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it("does nothing if the course has a project but no passing graded submission exists — THE core Rule 1/2 case: watching lessons and even passing the quiz is never enough on its own", async () => {
-    mockPrisma.certificate.findUnique.mockResolvedValueOnce(null);
-    mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([]); // no quiz on this course
-    mockPrisma.project.findUnique.mockResolvedValueOnce({ id: "project-1" });
-    mockPrisma.projectSubmission.findFirst.mockResolvedValueOnce(null); // no passing submission
-
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-  });
-
-  it("issues a certificate when completion + quiz + project all pass, and writes an audit log entry", async () => {
+  it("issues at a 70% average even if one quiz alone is below 70%, and writes an audit log entry", async () => {
     mockPrisma.certificate.findUnique
       .mockResolvedValueOnce(null) // existing-certificate check
       .mockResolvedValueOnce(null); // certificate-number uniqueness check
-    mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([{ id: "quiz-1" }]);
-    mockPrisma.quizAttempt.findMany.mockResolvedValueOnce([{ quizId: "quiz-1" }]);
-    mockPrisma.project.findUnique.mockResolvedValueOnce({ id: "project-1" });
-    mockPrisma.projectSubmission.findFirst.mockResolvedValueOnce({ id: "submission-1", score: 85 });
+    mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 40 });
+    gradesWith([item("quiz-1", 50), item("final", 80, 2), item("project", 75, 1, "project")]); // 71.25%
+    const { txCertificateCreate, txAuditLogCreate } = captureTransaction();
 
-    const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert-1" });
-    const txAuditLogCreate = vi.fn().mockResolvedValue({ id: "audit-1" });
-    mockPrisma.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({
-        certificate: { create: txCertificateCreate },
-        certificateAuditLog: { create: txAuditLogCreate },
-      }),
-    );
+    const certificate = await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
 
-    await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
-
-    expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(certificate).toEqual({ id: "new-cert", certificateNumber: "ESA-NEW" });
     expect(txCertificateCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ learnerId: LEARNER_ID, courseId: COURSE_ID }),
       }),
     );
-    // Every issuance must write an audit trail entry (Rule 6) — not an
-    // optional extra, the transaction always includes both writes.
+    // Every issuance must write an audit trail entry (Rule 6), not an
+    // optional extra: the transaction always includes both writes.
     expect(txAuditLogCreate).toHaveBeenCalledTimes(1);
     const auditCallArgs = txAuditLogCreate.mock.calls[0][0];
     expect(auditCallArgs.data.action).toBe("ISSUED");
     expect(auditCallArgs.data.performedById).toBeNull(); // system-issued, not a human
+    expect(auditCallArgs.data.notes).toContain("71%");
   });
 
   it("issues on completion alone when the course has neither a quiz nor a project", async () => {
-    mockPrisma.certificate.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
+    mockPrisma.certificate.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(null);
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([]);
-    mockPrisma.project.findUnique.mockResolvedValueOnce(null);
-
-    const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert-2" });
-    mockPrisma.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({
-        certificate: { create: txCertificateCreate },
-        certificateAuditLog: { create: vi.fn().mockResolvedValue({}) },
-      }),
-    );
+    gradesWith([]);
+    captureTransaction();
 
     await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
 
@@ -179,16 +133,8 @@ describe("maybeIssueCertificate", () => {
       .mockResolvedValueOnce({ id: "collides" }) // first generated number already taken
       .mockResolvedValueOnce(null); // second generated number is free
     mockPrisma.enrolment.findUnique.mockResolvedValueOnce({ progressPercent: 100 });
-    mockPrisma.quiz.findMany.mockResolvedValueOnce([]);
-    mockPrisma.project.findUnique.mockResolvedValueOnce(null);
-
-    const txCertificateCreate = vi.fn().mockResolvedValue({ id: "new-cert-3" });
-    mockPrisma.$transaction.mockImplementation(async (callback: (tx: unknown) => unknown) =>
-      callback({
-        certificate: { create: txCertificateCreate },
-        certificateAuditLog: { create: vi.fn().mockResolvedValue({}) },
-      }),
-    );
+    gradesWith([]);
+    captureTransaction();
 
     await maybeIssueCertificate(LEARNER_ID, COURSE_ID);
 
