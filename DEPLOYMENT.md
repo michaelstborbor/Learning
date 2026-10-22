@@ -141,6 +141,30 @@ string, and some database drivers choke on that unless it's rewritten to
 `postgresql://`. Prisma accepts both schemes natively — nothing to fix on
 that front for this app.
 
+## Vercel (with Neon Postgres)
+
+`vercel.json` sets the build command to
+`prisma generate && prisma db push --skip-generate && next build`, so every
+deploy regenerates the Prisma client (Vercel caches `node_modules`) and syncs
+the database schema before building. If `db push` refuses a change that would
+lose data, the build fails and the previous deployment stays live.
+
+1. In Vercel, **Add New → Project** and import this repository. The framework
+   is detected as Next.js; leave the build settings alone, `vercel.json`
+   supplies them.
+2. Under **Environment Variables**, add the values from section 2:
+   `DATABASE_URL`, `AUTH_SECRET`, `APP_BASE_URL` (the Vercel URL or your
+   domain), `RESEND_API_KEY`, `EMAIL_FROM_ADDRESS`, and the `STORAGE_S3_*`
+   variables.
+3. For `DATABASE_URL`, use Neon's **direct** connection string (the host
+   without `-pooler`) with `?sslmode=require`. `prisma db push` needs a direct
+   connection; the pooled one can fail during the schema sync.
+4. Course media must use S3-compatible storage on Vercel. Its filesystem is
+   read-only, so the local driver cannot store uploads there.
+5. A new Neon database starts empty. The first deploy creates the tables; run
+   `npm run db:seed` against it from your machine if you want demo data, or
+   restore a dump of the old database to keep existing users and courses.
+
 ## Railway
 
 `railway.json` configures a Railway service from the repo:
