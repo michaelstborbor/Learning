@@ -181,6 +181,31 @@ const PATHS = {
       <path d="M11 18h2" />
     </>
   ),
+  user: (
+    <>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4.5 20.5a7.5 7.5 0 0 1 15 0" />
+    </>
+  ),
+  settings: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1" />
+    </>
+  ),
+  logout: (
+    <>
+      <path d="M14.5 4.5h3a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-3" />
+      <path d="M10 16.5 5.5 12 10 7.5M5.5 12h10" />
+    </>
+  ),
+  key: (
+    <>
+      <circle cx="8" cy="15" r="4.5" />
+      <path d="m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2" />
+    </>
+  ),
+  chevronDown: <path d="m5 9 7 7 7-7" />,
 } as const;
 
 export type IconName = keyof typeof PATHS;

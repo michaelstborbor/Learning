@@ -5,24 +5,13 @@ import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 import { deleteStored, putObject, readObject } from "@/lib/storage";
 import { coursePosterUrl } from "@/lib/course-poster";
+import { IMAGE_EXTENSION, imageType } from "@/lib/image-type";
 
 // The course poster: one image per course, shown on course cards and at
 // the top of the course page. The browser shrinks it to a WebP before
 // upload (see src/lib/poster-image.ts), so it always fits in one request.
 
 const MAX_POSTER_BYTES = 3 * 1024 * 1024;
-
-// Checked from the file's first bytes rather than trusting the header.
-function imageType(bytes: Buffer): string | null {
-  if (bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP") {
-    return "image/webp";
-  }
-  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
-  if (bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
-  return null;
-}
-
-const EXTENSION: Record<string, string> = { "image/webp": "webp", "image/jpeg": "jpg", "image/png": "png" };
 
 async function managedCourse(courseId: string) {
   const session = await getSession();
@@ -88,7 +77,7 @@ export async function POST(
     return NextResponse.json({ error: "Use a JPG, PNG or WebP image for the poster." }, { status: 400 });
   }
 
-  const key = `courses/${course.id}/poster/${randomBytes(9).toString("base64url")}.${EXTENSION[type]}`;
+  const key = `courses/${course.id}/poster/${randomBytes(9).toString("base64url")}.${IMAGE_EXTENSION[type]}`;
   await putObject(key, bytes, type);
   const updated = await prisma.course.update({
     where: { id: course.id },

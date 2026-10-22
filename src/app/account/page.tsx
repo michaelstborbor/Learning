@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Alert } from "@/components/ui/Alert";
 import { LogoutButton } from "@/components/ui/LogoutButton";
 import { ResendVerificationBanner } from "@/components/auth/ResendVerificationBanner";
+import { Avatar } from "@/components/ui/Avatar";
+import { Icon } from "@/components/ui/Icon";
+import { avatarUrl } from "@/lib/profile";
 
 // This is the reference pattern for every protected page from here on:
 // check the session server-side, redirect if absent, and never trust
@@ -23,7 +26,7 @@ export default async function AccountPage({
     redirect("/login");
   }
 
-  const user = await prisma.user.findUnique({ where: { id: session.userId } });
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, include: { profile: true } });
   if (!user) {
     // Session refers to a user that no longer exists (e.g. deleted account).
     redirect("/login");
@@ -52,12 +55,29 @@ export default async function AccountPage({
         )}
 
         <Card className="mt-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium text-ink-900">{user.fullName}</p>
-              <p className="text-sm text-ink-500">{user.email}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <Avatar name={user.fullName} src={avatarUrl(user.id, user.profile?.avatarUpdatedAt)} size={48} />
+              <div className="min-w-0">
+                <p className="font-medium text-ink-900">{user.fullName}</p>
+                <p className="truncate text-sm text-ink-500">{user.email}</p>
+              </div>
             </div>
             <Badge tone="brand">{formatRole(user.role)}</Badge>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/account/profile"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-brand-400 px-4 text-sm font-semibold text-brand-600 hover:bg-brand-50"
+            >
+              <Icon name="user" size={18} /> Edit profile
+            </Link>
+            <Link
+              href="/account/profile#password"
+              className="inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-ink-700 hover:bg-ink-100"
+            >
+              <Icon name="key" size={18} /> Reset password
+            </Link>
           </div>
           <div className="flex flex-wrap gap-2 border-t border-ink-100 pt-4">
             <LogoutButton />

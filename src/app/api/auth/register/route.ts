@@ -6,6 +6,7 @@ import { generateToken, hashToken } from "@/lib/tokens";
 import { sendEmail, buildVerificationEmail } from "@/lib/notifications";
 import { rateLimitOrNull } from "@/lib/rate-limit";
 import { rejectBots } from "@/lib/bot-check";
+import { unprintableNameCharacters } from "@/lib/certificate-fonts";
 
 const VERIFICATION_EXPIRY_HOURS = 24;
 
@@ -29,6 +30,15 @@ export async function POST(request: Request) {
   }
 
   const { fullName, email, password } = parsed.data;
+  const unprintable = await unprintableNameCharacters(fullName);
+  if (unprintable.length > 0) {
+    return NextResponse.json(
+      {
+        error: `Certificates can't print ${unprintable.map((ch) => `"${ch}"`).join(", ")} yet. Write your name without ${unprintable.length === 1 ? "it" : "them"}, or contact us.`,
+      },
+      { status: 400 },
+    );
+  }
   // Optional: a cohort invite token from the emailed invite link (see
   // api/cohorts/[cohortId]/members and lib/notifications). Not validated
   // with zod above since it's not part of the core registration contract
