@@ -8,6 +8,7 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { CompleteLessonButton } from "@/components/courses/CompleteLessonButton";
 import { LessonMedia } from "@/components/courses/MediaPlayer";
+import { TutorLauncher } from "@/components/tutor/TutorLauncher";
 
 export default async function LessonPage({
   params,
@@ -61,7 +62,7 @@ export default async function LessonPage({
   return (
     <>
       <Nav />
-      <main className="mx-auto grid w-full max-w-6xl flex-1 grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-[260px_1fr]">
+      <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-8 px-4 sm:px-6 lg:px-8 py-8 lg:grid-cols-[260px_1fr]">
         <aside className="hidden lg:block">
           <div className="sticky top-24 flex max-h-[calc(100dvh-8rem)] flex-col gap-4 overflow-y-auto pr-2">
             <Link href={`/learn/${courseId}`} className="font-display font-semibold text-ink-900 hover:text-brand-600">
@@ -173,6 +174,7 @@ export default async function LessonPage({
           </div>
         </article>
       </main>
+      <TutorLauncher courseId={courseId} lessonId={lesson.id} />
     </>
   );
 }

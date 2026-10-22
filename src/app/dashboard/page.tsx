@@ -12,6 +12,8 @@ import { getSession } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES } from "@/lib/roles";
 import { getRecommendedCourses } from "@/lib/recommendations";
 import { getLearningActivity } from "@/lib/activity";
+import { formatCourseDuration } from "@/lib/course-duration";
+import { coursePosterUrl } from "@/lib/course-poster";
 
 function greeting(): string {
   // Freetown is on UTC all year.
@@ -76,7 +78,7 @@ export default async function DashboardPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold text-ink-900 sm:text-4xl">
@@ -94,7 +96,7 @@ export default async function DashboardPage() {
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.6fr_1fr]">
           {focus ? (
-            <CourseCover title={focus.course.title} className="rounded-3xl text-white shadow-overlay">
+            <CourseCover title={focus.course.title} posterUrl={coursePosterUrl(focus.course)} className="rounded-3xl text-white shadow-overlay">
               <div className="flex h-full flex-col justify-between gap-6 p-6 sm:p-8">
                 <div className="flex items-start justify-between gap-4">
                   <div>
@@ -229,14 +231,15 @@ export default async function DashboardPage() {
               />
             </div>
           ) : (
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {enrolments.map((enrolment) => (
                 <Link key={enrolment.id} href={`/learn/${enrolment.courseId}`} className="rounded-xl">
                   <CourseCard
                     title={enrolment.course.title}
                     category={enrolment.course.category}
                     level={enrolment.course.level}
-                    durationLabel={`${enrolment.course.estimatedHours}h`}
+                    durationLabel={formatCourseDuration(enrolment.course)}
+                    posterUrl={coursePosterUrl(enrolment.course)}
                     lessonCount={enrolment.course.modules.reduce((sum, m) => sum + m.lessons.length, 0)}
                     progressPercent={enrolment.progressPercent}
                   />
@@ -250,14 +253,15 @@ export default async function DashboardPage() {
           <section className="mt-12">
             <h2 className="font-display text-2xl font-semibold text-ink-900">Recommended for you</h2>
             <p className="mt-1 text-sm text-ink-500">{recommendations.reason}</p>
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {recommendations.courses.map((course) => (
                 <Link key={course.id} href={`/courses/${course.slug}`} className="rounded-xl">
                   <CourseCard
                     title={course.title}
                     category={course.category}
                     level={course.level}
-                    durationLabel={`${course.estimatedHours}h`}
+                    durationLabel={formatCourseDuration(course)}
+                    posterUrl={coursePosterUrl(course)}
                   />
                 </Link>
               ))}

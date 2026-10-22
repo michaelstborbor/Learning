@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { CourseCard } from "@/components/ui/CourseCard";
 import { Icon } from "@/components/ui/Icon";
 import { prisma } from "@/lib/db";
+import { formatCourseDuration } from "@/lib/course-duration";
+import { coursePosterUrl } from "@/lib/course-poster";
 
 export const metadata: Metadata = {
   title: "Courses",
@@ -73,7 +75,7 @@ export default async function CoursesPage({
       <Nav />
       <main className="w-full flex-1">
         <section className="signal-field text-white">
-          <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
             <h1 className="max-w-2xl font-display text-4xl font-bold text-white sm:text-5xl">
               Find a skill to work on this week
             </h1>
@@ -128,7 +130,7 @@ export default async function CoursesPage({
           </div>
         </section>
 
-        <div className="mx-auto max-w-6xl px-4 py-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-10">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-ink-500">
               {courses.length} course{courses.length === 1 ? "" : "s"}
@@ -160,7 +162,7 @@ export default async function CoursesPage({
               />
             </div>
           ) : (
-            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {courses.map((course) => (
                 <Link key={course.id} href={`/courses/${course.slug}`} className="rounded-xl">
                   <CourseCard
@@ -168,7 +170,8 @@ export default async function CoursesPage({
                     category={course.category}
                     level={course.level}
                     description={course.description}
-                    durationLabel={`${course.estimatedHours}h`}
+                    durationLabel={formatCourseDuration(course)}
+                    posterUrl={coursePosterUrl(course)}
                     lessonCount={course.modules.reduce((sum, m) => sum + m._count.lessons, 0)}
                     certificateEligible={Boolean(course.project?.skillId)}
                   />

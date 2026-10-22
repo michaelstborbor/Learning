@@ -7,6 +7,8 @@ import { CourseCover } from "@/components/ui/CourseCover";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { EnrolButton } from "@/components/courses/EnrolButton";
+import { formatCourseDuration, isoCourseDuration } from "@/lib/course-duration";
+import { coursePosterUrl } from "@/lib/course-poster";
 
 // Enrolment state and course status can change after deploy — never
 // frozen as a static build-time snapshot.
@@ -85,8 +87,8 @@ export default async function CourseDetailPage({
     <>
       <Nav />
       <main className="w-full flex-1">
-        <CourseCover title={course.title} className="text-white">
-          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-4 py-10 sm:py-14 lg:grid-cols-[1fr_320px] lg:items-end">
+        <CourseCover title={course.title} posterUrl={coursePosterUrl(course)} className="text-white">
+          <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:grid-cols-[1fr_320px] lg:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-white/15 px-2.5 py-0.5 text-xs font-medium">{course.category}</span>
@@ -96,7 +98,7 @@ export default async function CourseDetailPage({
               <p className="mt-4 max-w-2xl text-lg text-white/85">{course.description}</p>
               <p className="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-sm text-white/75">
                 <span className="inline-flex items-center gap-1.5"><Icon name="target" size={16} /> {course.level}</span>
-                <span className="inline-flex items-center gap-1.5"><Icon name="clock" size={16} /> About {course.estimatedHours} hours</span>
+                <span className="inline-flex items-center gap-1.5"><Icon name="clock" size={16} /> About {formatCourseDuration(course)}</span>
                 <span className="inline-flex items-center gap-1.5"><Icon name="users" size={16} /> {course._count.enrolments} enrolled</span>
               </p>
               <p className="mt-2 text-sm text-white/75">Taught by {course.instructor.fullName}</p>
@@ -115,7 +117,7 @@ export default async function CourseDetailPage({
           </div>
         </CourseCover>
 
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-10 px-4 py-10 lg:grid-cols-[1fr_320px]">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-10 px-4 sm:px-6 lg:px-8 py-10 lg:grid-cols-[1fr_320px]">
           <section>
             <h2 className="font-display text-2xl font-semibold text-ink-900">What you&apos;ll learn</h2>
             <ol className="mt-5 flex flex-col gap-3">
@@ -178,7 +180,7 @@ export default async function CourseDetailPage({
                 name: "EliteSkills Academy",
               },
               educationalLevel: course.level,
-              timeRequired: `PT${course.estimatedHours}H`,
+              timeRequired: isoCourseDuration(course),
             }).replace(/</g, "\\u003c"),
           }}
         />

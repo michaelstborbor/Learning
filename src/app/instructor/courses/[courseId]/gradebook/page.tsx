@@ -61,7 +61,7 @@ export default async function GradebookPage({ params }: { params: Promise<{ cour
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 lg:px-8 py-10">
         <Link
           href={`/instructor/courses/${course.id}`}
           className="inline-flex items-center gap-1 text-sm text-brand-600 hover:underline"

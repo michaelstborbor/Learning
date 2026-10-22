@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
+import { hoursFromMinutes } from "@/lib/course-duration";
 
 export async function GET(
   _request: Request,
@@ -47,6 +48,7 @@ const updateCourseSchema = z.object({
   category: z.string().trim().min(2).optional(),
   level: z.string().trim().min(2).optional(),
   estimatedHours: z.number().int().positive().optional(),
+  durationMinutes: z.number().int().min(5, "A course needs at least 5 minutes.").max(100000).optional(),
 });
 
 export async function PATCH(
@@ -74,7 +76,10 @@ export async function PATCH(
 
   const updated = await prisma.course.update({
     where: { id: courseId },
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      ...(parsed.data.durationMinutes && { estimatedHours: hoursFromMinutes(parsed.data.durationMinutes) }),
+    },
   });
 
   return NextResponse.json(updated);

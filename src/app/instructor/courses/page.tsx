@@ -1,13 +1,15 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "@/components/ui/Nav";
-import { Card } from "@/components/ui/Card";
+import { CourseCover } from "@/components/ui/CourseCover";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { COURSE_AUTHOR_ROLES } from "@/lib/roles";
 import { CreateCourseForm } from "@/components/courses/CreateCourseForm";
+import { coursePosterUrl } from "@/lib/course-poster";
+import { formatCourseDuration } from "@/lib/course-duration";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
@@ -32,8 +34,8 @@ export default async function InstructorCoursesPage() {
   return (
     <>
       <Nav />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12">
-        <div className="flex items-center justify-between">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6 lg:px-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="font-display text-2xl font-bold text-ink-900">
             {isAdmin ? "All courses" : "Your courses"}
           </h1>
@@ -48,23 +50,30 @@ export default async function InstructorCoursesPage() {
             />
           </div>
         ) : (
-          <div className="mt-8 flex flex-col gap-3">
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md */}
-            {courses.map((course: any) => (
-              <Link key={course.id} href={`/instructor/courses/${course.id}`}>
-                <Card className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-ink-900">{course.title}</p>
-                    {isAdmin && (
-                      <p className="text-xs text-ink-500">
-                        by {course.instructor.fullName}
-                      </p>
-                    )}
-                  </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {courses.map((course) => (
+              <Link
+                key={course.id}
+                href={`/instructor/courses/${course.id}`}
+                data-fx="card"
+                className="flex flex-col overflow-hidden rounded-xl border border-ink-100 bg-white shadow-raised"
+              >
+                <CourseCover
+                  title={course.title}
+                  posterUrl={coursePosterUrl(course)}
+                  className="flex aspect-[2/1] items-start justify-end p-3"
+                >
                   <Badge tone={course.status === "PUBLISHED" ? "verified" : "neutral"}>
                     {STATUS_LABEL[course.status] ?? course.status}
                   </Badge>
-                </Card>
+                </CourseCover>
+                <div className="flex flex-1 flex-col gap-1 p-4">
+                  <p className="font-display font-semibold text-ink-900">{course.title}</p>
+                  <p className="text-xs text-ink-500">
+                    {isAdmin ? `by ${course.instructor.fullName} · ` : ""}
+                    {course.category} · {formatCourseDuration(course)}
+                  </p>
+                </div>
               </Link>
             ))}
           </div>

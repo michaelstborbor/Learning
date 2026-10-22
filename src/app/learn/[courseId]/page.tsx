@@ -10,6 +10,8 @@ import { MediaResourceList } from "@/components/courses/MediaPlayer";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { getCourseGrades, type GradeItem } from "@/lib/gradebook";
+import { coursePosterUrl } from "@/lib/course-poster";
+import { TutorLauncher } from "@/components/tutor/TutorLauncher";
 
 function QuizRow({
   courseId,
@@ -103,8 +105,8 @@ export default async function LearnCoursePage({
     <>
       <Nav />
       <main className="w-full flex-1">
-        <CourseCover title={course.title} className="text-white">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-6 px-4 py-8">
+        <CourseCover title={course.title} posterUrl={coursePosterUrl(course)} className="text-white">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-6 px-4 sm:px-6 lg:px-8 py-8">
             <div className="max-w-2xl">
               <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-white/80 hover:text-white">
                 <Icon name="chevronLeft" size={16} /> Dashboard
@@ -143,7 +145,7 @@ export default async function LearnCoursePage({
           </div>
         </CourseCover>
 
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 px-4 py-8 lg:grid-cols-[1fr_300px]">
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 sm:px-6 lg:px-8 py-8 lg:grid-cols-[1fr_300px]">
           <div className="flex min-w-0 flex-col gap-6">
             {course.modules.map((moduleItem, index) => {
               const done = moduleItem.lessons.filter((l) => completedLessonIds.has(l.id)).length;
@@ -275,6 +277,7 @@ export default async function LearnCoursePage({
           </aside>
         </div>
       </main>
+      <TutorLauncher courseId={courseId} />
     </>
   );
 }
