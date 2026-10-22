@@ -93,7 +93,11 @@ the Blueprint doesn't cover (like choosing a specific region).
 ## 5. Web service (Render Web Service) — manual path / what the Blueprint did
 
 1. **New → Web Service**, connect your repository.
-2. **Build command:** `npm install && npx prisma generate && npm run build`
+2. **Build command:** `npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npm run build`
+   (`--include=dev` matters: with `NODE_ENV=production` set, a plain
+   `npm install` skips Prisma, Tailwind and TypeScript and the build fails.
+   A service created before this change keeps its old build command, so
+   update it under the service's **Settings → Build & Deploy**.)
 3. **Start command:** `npm run start`
 4. **Environment:** Node
 5. Add every environment variable from step 2 in the service's Environment
