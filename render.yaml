@@ -16,7 +16,11 @@ services:
     # had nothing to apply and never created the tables. `db push` syncs the
     # database to prisma/schema.prisma on every deploy and refuses changes
     # that would lose data (see DEPLOYMENT.md, section 5).
-    buildCommand: npm install && npx prisma generate && npx prisma db push --skip-generate && npm run build
+    # NODE_ENV=production below also applies at build time, which makes a
+    # plain `npm install` skip devDependencies (prisma, tailwind, typescript).
+    # Without them `npx prisma generate` fetches an unrelated Prisma CLI and
+    # the build fails, so Render keeps serving the previous deploy.
+    buildCommand: npm install --include=dev && npx prisma generate && npx prisma db push --skip-generate && npm run build
     startCommand: npm run start
     envVars:
       - key: DATABASE_URL
