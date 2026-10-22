@@ -1,6 +1,7 @@
 import "server-only";
 import { ResendProvider } from "./resend-provider";
 import type { EmailMessage } from "./types";
+import { appBaseUrl } from "@/lib/app-url";
 
 const provider = new ResendProvider();
 
@@ -11,7 +12,7 @@ export async function sendEmail(message: EmailMessage): Promise<{ id: string } |
 }
 
 function baseUrl(): string {
-  return process.env.APP_BASE_URL ?? "http://localhost:3000";
+  return appBaseUrl();
 }
 
 // Deliberately plain, minimal-HTML templates — most email clients strip
