@@ -18,6 +18,7 @@ All variables are documented (without real values) in `.env.example`. Copy it to
 | `MEDIA_MAX_UPLOAD_MB` | No | Largest file accepted after compression. Default `500` |
 | `ANTHROPIC_API_KEY` | For the study buddy | Claude API key for the AI study buddy chat on every course. Without it the chat shows as offline |
 | `TUTOR_MODEL` | No | Claude model for the study buddy. Default `claude-opus-5-5` |
+| `BOT_PROTECTION` | No | Vercel BotID check on sign-up, login, password reset and the study buddy. On by default; set to `off` and redeploy only in an emergency (for example if real people are being blocked) |
 | `EMAIL_*` | Not yet | Added when the notification module is implemented |
 | `PAYMENT_*` | Not yet | Deferred — platform launches free/open-access |
 

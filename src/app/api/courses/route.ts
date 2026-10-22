@@ -16,11 +16,11 @@ export async function GET() {
 }
 
 const createCourseSchema = z.object({
-  title: z.string().trim().min(3, "Title must be at least 3 characters."),
-  description: z.string().trim().min(10, "Add a short description."),
-  category: z.string().trim().min(2, "Category is required."),
-  level: z.string().trim().min(2, "Level is required."),
-  estimatedHours: z.number().int().positive().default(1),
+  title: z.string().trim().min(3, "Title must be at least 3 characters.").max(200, "Keep the title under 200 characters."),
+  description: z.string().trim().min(10, "Add a short description.").max(5000, "Keep the description under 5,000 characters."),
+  category: z.string().trim().min(2, "Category is required.").max(80),
+  level: z.string().trim().min(2, "Level is required.").max(40),
+  estimatedHours: z.number().int().positive().max(2000).default(1),
   // Hours and minutes from the course form, as total minutes.
   durationMinutes: z.number().int().min(5, "A course needs at least 5 minutes.").max(100000).optional(),
 });

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { webUrlSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
 import { requireRole } from "@/lib/auth";
 import { ORGANIZATION_ROLES } from "@/lib/roles";
 
 const createOrgSchema = z.object({
-  name: z.string().trim().min(2, "Organization name is required."),
-  description: z.string().trim().min(10, "Add a short description."),
-  website: z.string().trim().url("Enter a valid URL.").optional().or(z.literal("")),
+  name: z.string().trim().min(2, "Organization name is required.").max(200),
+  description: z.string().trim().min(10, "Add a short description.").max(5000),
+  website: webUrlSchema.optional().or(z.literal("")),
 });
 
 export async function POST(request: Request) {

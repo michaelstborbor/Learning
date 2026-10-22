@@ -5,6 +5,7 @@ import { registerSchema } from "@/lib/validation";
 import { generateToken, hashToken } from "@/lib/tokens";
 import { sendEmail, buildVerificationEmail } from "@/lib/notifications";
 import { rateLimitOrNull } from "@/lib/rate-limit";
+import { rejectBots } from "@/lib/bot-check";
 
 const VERIFICATION_EXPIRY_HOURS = 24;
 
@@ -12,8 +13,10 @@ export async function POST(request: Request) {
   // Looser than login (account creation is a normal, if less frequent,
   // action) but still bounded — mainly a guard against automated mass
   // account creation.
-  const limited = rateLimitOrNull(request, "register", { limit: 5, windowSeconds: 600 });
+  const limited = await rateLimitOrNull(request, "register", { limit: 5, windowSeconds: 600 });
   if (limited) return limited;
+  const bot = await rejectBots();
+  if (bot) return bot;
 
   const body = await request.json().catch(() => null);
   const parsed = registerSchema.safeParse(body);
@@ -108,7 +111,7 @@ export async function POST(request: Request) {
   const message = buildVerificationEmail(user.fullName, raw);
   await sendEmail({ ...message, to: user.email });
 
-  await createSession({ userId: user.id, role: user.role });
+  await createSession({ userId: user.id, role: user.role, sessionVersion: user.sessionVersion });
 
   return NextResponse.json({ id: user.id, fullName: user.fullName, role: user.role });
 }

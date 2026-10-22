@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { canViewCourseMedia } from "@/lib/media";
 import { TutorRefusal, streamTutorReply, tutorEnabled } from "@/lib/tutor";
 import { MAX_TUTOR_MESSAGE_CHARS } from "@/lib/tutor-options";
+import { rejectBots } from "@/lib/bot-check";
 
 // The AI study buddy chat for one course: GET loads the learner's
 // conversation, POST sends a message and streams the reply back as plain
@@ -45,7 +46,7 @@ const sendSchema = z.object({
   message: z.string().trim().min(1, "Type a message first.").max(MAX_TUTOR_MESSAGE_CHARS, "That message is too long."),
   level: z.enum(["expert", "standard", "simple", "beginner"]).default("standard"),
   language: z.enum(["en", "kri"]).default("en"),
-  lessonId: z.string().optional().nullable(),
+  lessonId: z.string().max(40).optional().nullable(),
 });
 
 export async function POST(request: Request, { params }: { params: Promise<{ courseId: string }> }) {
@@ -53,6 +54,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ cou
   const result = await access(courseId);
   if (result.error) return result.error;
   const { session } = result;
+  const bot = await rejectBots();
+  if (bot) return bot;
 
   if (!tutorEnabled()) {
     return NextResponse.json(

@@ -80,8 +80,20 @@ export function RegisterForm({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           minLength={8}
+          maxLength={128}
           required
         />
+        <p className="text-xs text-ink-500">
+          By creating an account you agree to the{" "}
+          <Link href="/terms" className="font-medium text-brand-600 hover:underline">
+            terms and conditions
+          </Link>{" "}
+          and{" "}
+          <Link href="/privacy" className="font-medium text-brand-600 hover:underline">
+            privacy policy
+          </Link>
+          .
+        </p>
         <Button type="submit" disabled={submitting}>
           {submitting ? "Creating account…" : "Create account"}
         </Button>

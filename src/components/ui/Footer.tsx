@@ -6,6 +6,7 @@ const LINKS = [
   { href: "/verify", label: "Verify a certificate" },
   { href: "/contact", label: "Contact" },
   { href: "/privacy", label: "Privacy" },
+  { href: "/data-use", label: "Data use" },
   { href: "/terms", label: "Terms" },
 ];
 

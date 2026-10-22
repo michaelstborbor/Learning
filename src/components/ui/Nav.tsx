@@ -19,7 +19,7 @@ export async function Nav() {
 
   // Kept to a handful per role; secondary pages (verify, about, help) live
   // in the footer so the bar stays scannable.
-  const items: NavItem[] = [];
+  const items: NavItem[] = [{ href: "/", label: "Home" }];
   if (isLearnerNav) {
     items.push(
       { href: "/dashboard", label: "Dashboard" },

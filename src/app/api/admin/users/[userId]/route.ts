@@ -71,7 +71,13 @@ export async function PATCH(
 
   const updated = await prisma.user.update({
     where: { id: userId },
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      // Role and active status are re-read on every request (see getSession),
+      // so changes apply at once. Deactivating also ends every existing
+      // session for good, so reactivating later doesn't revive old cookies.
+      ...(parsed.data.isActive === false && { sessionVersion: { increment: 1 } }),
+    },
   });
 
   await writeAuditLog({

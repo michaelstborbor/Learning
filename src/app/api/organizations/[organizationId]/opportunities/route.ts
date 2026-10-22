@@ -5,11 +5,11 @@ import { getSession } from "@/lib/auth";
 import { canManageOrganization } from "@/lib/permissions";
 
 const opportunitySchema = z.object({
-  title: z.string().trim().min(3, "Give the opportunity a title."),
+  title: z.string().trim().min(3, "Give the opportunity a title.").max(200),
   type: z.enum(["INTERNSHIP", "JOB", "APPRENTICESHIP", "VOLUNTEER", "PROJECT", "MENTORSHIP"]),
-  description: z.string().trim().min(10, "Add a description."),
-  eligibilityCriteria: z.string().trim().min(5, "Describe who's eligible."),
-  location: z.string().trim().optional(),
+  description: z.string().trim().min(10, "Add a description.").max(10000),
+  eligibilityCriteria: z.string().trim().min(5, "Describe who's eligible.").max(5000),
+  location: z.string().trim().max(200).optional(),
 });
 
 export async function POST(

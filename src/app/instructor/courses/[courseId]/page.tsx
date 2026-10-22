@@ -18,6 +18,7 @@ import { SubmitReviewButton } from "@/components/courses/SubmitReviewButton";
 import { coursePosterUrl } from "@/lib/course-poster";
 import { courseMinutes } from "@/lib/course-duration";
 import { CourseDetailsEditor } from "@/components/courses/CourseDetailsEditor";
+import { DeleteCourseButton } from "@/components/courses/DeleteCourseButton";
 
 const STATUS_LABEL: Record<string, string> = {
   DRAFT: "Draft",
@@ -125,6 +126,15 @@ export default async function ManageCoursePage({
     prisma.certificate.count({ where: { courseId, status: "ACTIVE" } }),
   ]);
 
+  // Same rules the DELETE route enforces, shown up front in the dialog.
+  const issuedCertificates = await prisma.certificate.count({ where: { courseId } });
+  const deleteBlockedReason =
+    issuedCertificates > 0
+      ? "Learners have earned certificates from this course, and certificates must stay verifiable, so it can't be deleted. Ask an administrator to archive it instead."
+      : enrolmentCount > 0 && !isAdmin
+        ? `${enrolmentCount} learner${enrolmentCount === 1 ? " is" : "s are"} enrolled in this course, so only an administrator can delete it.`
+        : null;
+
   const completionRate = enrolmentCount > 0 ? Math.round((completedCount / enrolmentCount) * 100) : 0;
   const quizPassRate =
     quizAttempts.length > 0
@@ -173,6 +183,12 @@ export default async function ManageCoursePage({
                 >
                   <Icon name="chart" size={18} /> Gradebook
                 </Link>
+                <DeleteCourseButton
+                  courseId={course.id}
+                  courseTitle={course.title}
+                  enrolmentCount={enrolmentCount}
+                  blockedReason={deleteBlockedReason}
+                />
                 {isAdmin && (course.status === "APPROVED" || course.status === "PUBLISHED") && (
                   <div className="rounded-lg bg-white">
                     <PublishToggle courseId={course.id} status={course.status} />

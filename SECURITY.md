@@ -135,15 +135,13 @@ left as a known gap.
 
 ### Honest gaps (not fixed in this pass — named, not hidden)
 
-- **No account deletion workflow.** The brief (Section 21) asks for one.
-  This wasn't built in this pass because it has real cascading-delete
-  implications across roughly twenty related tables (enrolments, quiz
-  attempts, certificates, cohort memberships, submissions...) that deserve
-  a deliberate design of their own — what gets hard-deleted vs. anonymized,
-  what happens to a certificate someone else relies on verifying, etc. — not
-  a rushed addition under an audit-pass banner.
-- **No data export tool.** Same reasoning — deferred as a dedicated future
-  increment rather than bolted on here.
+- **No self-service account deletion.** Deletion is still handled on request
+  (see the privacy policy), because it has real cascading implications across
+  roughly twenty related tables and for certificates other people rely on
+  verifying. A self-service flow with anonymisation is a planned increment.
+- ~~No data export tool~~ **Fixed (October 2026):** "Download my data" on the
+  account page (`/api/account/export`) returns everything held about the
+  user as JSON, without password or token hashes.
 - **Sierra Leone data-protection legal status:** unchanged since Stage B —
   the platform's Privacy page already avoids claiming compliance with a law
   that isn't yet fully in force (see `ARCHITECTURE.md` and the Privacy page
@@ -250,3 +248,71 @@ usable on constrained connections):
 pass — see `ARCHITECTURE.md`'s "Known sandbox limitation" note for what
 that does and doesn't prove. As with every prior stage, real database and
 runtime behavior have not been exercised in this build environment.
+
+---
+
+## October 2026 audit
+
+A second full pass over every API route, page, the proxy and the headers.
+Each item below was changed in code and checked in a browser against a
+production build.
+
+### Findings and fixes
+
+1. **Sessions outlived the account's state (fixed).** The session cookie
+   carried the role and was trusted for up to 7 days, so deactivating a user,
+   changing their role or resetting their password had no effect on cookies
+   already issued. `getSession()` (`src/lib/auth.ts`) now re-reads the account
+   once per request: deactivated accounts are signed out, the role comes from
+   the database, and a new `users.sessionVersion` (carried in the cookie as
+   `sv`) is raised on password reset, deactivation and "Log out on all
+   devices", which ends every existing session.
+2. **Rate limits didn't hold on serverless hosting (fixed).** The in-memory
+   limiter was per instance, and Vercel runs many. Limits now live in a
+   shared Postgres table (`rate_limits`, one atomic upsert per check) with the
+   in-memory limiter as a fallback if the database is unreachable. Added
+   limits that were missing: per-account login (20 / 15 min), reset-password
+   (10 / 10 min / IP), certificate verify API (30 / min / IP), reset emails
+   per inbox (3 / hour), data export (5 / hour).
+3. **Login timing revealed which emails have accounts (fixed).** An unknown
+   email returned before the bcrypt check. It now runs bcrypt against a dummy
+   hash, so both cases take the same time (~0.5 s, measured).
+4. **Stored links could run script (fixed).** Project submission links and
+   organization websites accepted any URL scheme, including `javascript:`.
+   They now must be http(s) (`webUrlSchema`), and links are rendered through
+   `safeHref()` so older stored values can't run either.
+5. **No length limits on free text (fixed).** Most create/update schemas had
+   minimums but no maximums, so one request could store megabytes. Every
+   free-text field now has a sensible cap; passwords are capped at 128.
+6. **Guessable certificate numbers (fixed).** They came from `Math.random()`.
+   They now use `crypto.randomBytes` over an unambiguous 32-character
+   alphabet (50 bits).
+7. **Missing headers (fixed).** Added HSTS, a Content-Security-Policy
+   (`frame-ancestors 'none'; object-src 'none'; base-uri 'self';
+   form-action 'self'`, plus `upgrade-insecure-requests` on Vercel),
+   `Cross-Origin-Opener-Policy: same-origin`, and removed `X-Powered-By`.
+   A script allow-list is deliberately not enforced yet: Next.js, BotID and
+   Vercel Analytics need inline and same-origin scripts, and a wrong list
+   would break sign-in. Moving to nonce-based CSP is a follow-up.
+8. **No cross-site request check (fixed).** `src/proxy.ts` now refuses
+   POST/PUT/PATCH/DELETE to `/api/*` whose `Origin` is another site, on top
+   of the SameSite=Lax cookie.
+9. **No bot protection (fixed).** Vercel BotID guards sign-up, login,
+   forgot/reset password and the study buddy (`src/lib/bot-check.ts`,
+   `src/instrumentation-client.ts`). If the browser check can't load, the
+   request is still sent so the server answers clearly instead of hanging.
+   `BOT_PROTECTION=off` is an emergency switch. The proxy also turns away
+   known attack tools by user agent and probes for files like `/.env` or
+   `/wp-admin`.
+10. **Course deletion (new feature, built safely).** Deleting a course needs
+    the title typed back, is refused when certificates were issued, is
+    admin-only when learners are enrolled, runs in one transaction, removes
+    stored files afterwards and is written to the audit log.
+
+### Privacy additions
+
+- Vercel Web Analytics is cookieless; query strings (which can hold reset,
+  verification and invite tokens) are stripped before sending.
+- Admin learning insights show totals only.
+- New `/data-use` page; `/privacy` and `/terms` rewritten to match what the
+  platform actually does. Still marked as drafts pending legal review.

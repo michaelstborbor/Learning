@@ -33,7 +33,7 @@ const mockPrisma = {
 vi.mock("@/lib/db", () => ({ prisma: mockPrisma }));
 
 // Imported after the mock is registered, per vi.mock hoisting semantics.
-const { maybeIssueCertificate } = await import("./certificates");
+const { maybeIssueCertificate, generateCertificateNumber } = await import("./certificates");
 
 const LEARNER_ID = "learner-1";
 const COURSE_ID = "course-1";
@@ -196,5 +196,18 @@ describe("maybeIssueCertificate", () => {
     // (colliding) number check, and the second (free) number check.
     expect(mockPrisma.certificate.findUnique).toHaveBeenCalledTimes(3);
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("generateCertificateNumber", () => {
+  it("uses the ESA- prefix and an unambiguous alphabet", () => {
+    for (let i = 0; i < 200; i++) {
+      expect(generateCertificateNumber()).toMatch(/^ESA-[2-9A-HJ-NP-Z]{10}$/);
+    }
+  });
+
+  it("doesn't repeat", () => {
+    const numbers = new Set(Array.from({ length: 1000 }, () => generateCertificateNumber()));
+    expect(numbers.size).toBe(1000);
   });
 });

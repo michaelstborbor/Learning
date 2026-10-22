@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { webUrlSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 
 const submitSchema = z.object({
-  submissionUrl: z.string().trim().url("Enter a valid link to your work."),
-  notes: z.string().trim().optional(),
+  submissionUrl: webUrlSchema,
+  notes: z.string().trim().max(2000, "Keep notes under 2,000 characters.").optional(),
 });
 
 export async function POST(

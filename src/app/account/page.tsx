@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { Nav } from "@/components/ui/Nav";
@@ -58,15 +59,29 @@ export default async function AccountPage({
             </div>
             <Badge tone="brand">{formatRole(user.role)}</Badge>
           </div>
-          <div className="border-t border-ink-100 pt-4">
+          <div className="flex flex-wrap gap-2 border-t border-ink-100 pt-4">
             <LogoutButton />
+            <LogoutButton everywhere />
           </div>
         </Card>
 
-        <p className="mt-6 text-sm text-ink-500">
-          Profile editing, enrolled courses, and your Skills Passport arrive
-          in later build stages.
-        </p>
+        <Card className="mt-6 flex flex-col gap-3">
+          <h2 className="font-display text-lg font-semibold text-ink-900">Your data</h2>
+          <p className="text-sm text-ink-500">
+            Download a copy of everything EliteSkills Academy holds about you: your profile, courses,
+            progress, quiz results, projects, certificates, applications and study buddy chats. See
+            the <Link href="/privacy" className="font-medium text-brand-600 hover:underline">privacy policy</Link>{" "}
+            and <Link href="/data-use" className="font-medium text-brand-600 hover:underline">data use policy</Link>{" "}
+            for how it is used.
+          </p>
+          <a
+            href="/api/account/export"
+            download
+            className="inline-flex min-h-11 w-fit items-center rounded-lg border border-ink-200 px-4 text-sm font-semibold text-ink-900 hover:bg-ink-50"
+          >
+            Download my data
+          </a>
+        </Card>
       </main>
     </>
   );

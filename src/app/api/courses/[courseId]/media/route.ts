@@ -11,7 +11,7 @@ import { MAX_TRANSCRIPT_CHARS, cleanTranscript } from "@/lib/transcript";
 const createSchema = z.object({
   kind: z.enum(["VIDEO", "AUDIO", "DOCUMENT"]),
   title: z.string().trim().min(1, "Give the file a title.").max(200),
-  lessonId: z.string().optional().nullable(),
+  lessonId: z.string().max(40).optional().nullable(),
   fileName: z.string().trim().min(1).max(255),
   mimeType: z.string().trim().min(3).max(150),
   contentEncoding: z.enum(["gzip"]).optional().nullable(),

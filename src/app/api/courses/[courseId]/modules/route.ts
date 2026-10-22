@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { canManageCourse } from "@/lib/permissions";
 
 const moduleSchema = z.object({
-  title: z.string().trim().min(2, "Give the module a title."),
+  title: z.string().trim().min(2, "Give the module a title.").max(200, "Keep the title under 200 characters."),
 });
 
 export async function POST(

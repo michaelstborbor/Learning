@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { PUBLISH_ROLES } from "@/lib/roles";
 
 const revokeSchema = z.object({
-  reason: z.string().trim().min(5, "Give a reason for the audit trail."),
+  reason: z.string().trim().min(5, "Give a reason for the audit trail.").max(1000),
 });
 
 // Deliberately the same role gate as publishing (PUBLISH_ROLES): admin

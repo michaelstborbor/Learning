@@ -5,7 +5,7 @@ import { getSession } from "@/lib/auth";
 import { canManageOrganization } from "@/lib/permissions";
 
 const attendanceSchema = z.object({
-  sessionDate: z.string().min(1, "Set a session date."),
+  sessionDate: z.string().min(1, "Set a session date.").max(40),
   // Map of learnerId -> present (boolean)
   records: z.record(z.string(), z.boolean()),
 });

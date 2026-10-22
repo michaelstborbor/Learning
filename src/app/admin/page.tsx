@@ -17,10 +17,28 @@ function StatCard({ label, value, href }: { label: string; value: number; href: 
   );
 }
 
+function daysAgo(days: number): Date {
+  return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+}
+
+function Metric({ value, label }: { value: number | string; label: string }) {
+  return (
+    <Card className="flex flex-col gap-1">
+      <p className="font-display text-xl font-bold tabular-nums text-ink-900">{value}</p>
+      <p className="text-xs text-ink-500">{label}</p>
+    </Card>
+  );
+}
+
 export default async function AdminDashboardPage() {
   const session = await requireRole(PUBLISH_ROLES);
   if (!session) redirect("/login");
 
+  const since7 = daysAgo(7);
+  const since30 = daysAgo(30);
+
+  // Everything below is counted from the platform's own tables and shown
+  // only as totals: no individual learner is identifiable on this page.
   const [
     totalUsers,
     activeLearners,
@@ -31,9 +49,17 @@ export default async function AdminDashboardPage() {
     totalOrganizations,
     openOpportunities,
     totalEnrolments,
+    startedEnrolments,
     completedEnrolments,
-    allQuizAttempts,
+    submittedAttempts,
+    passedAttempts,
     topCourses,
+    learnersActive7,
+    learnersActive30,
+    lessonsDone7,
+    newSignups30,
+    tutorQuestions7,
+    certificates30,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: "LEARNER", isActive: true } }),
@@ -44,25 +70,46 @@ export default async function AdminDashboardPage() {
     prisma.organization.count(),
     prisma.opportunity.count({ where: { status: "OPEN" } }),
     prisma.enrolment.count(),
+    prisma.enrolment.count({ where: { progressPercent: { gt: 0 } } }),
     prisma.enrolment.count({ where: { progressPercent: 100 } }),
-    prisma.quizAttempt.findMany({ select: { passed: true } }),
+    prisma.quizAttempt.count({ where: { status: "SUBMITTED" } }),
+    prisma.quizAttempt.count({ where: { status: "SUBMITTED", passed: true } }),
     prisma.course.findMany({
       where: { status: "PUBLISHED" },
-      include: { _count: { select: { enrolments: true } } },
+      select: { id: true, title: true, _count: { select: { enrolments: true } } },
       orderBy: { enrolments: { _count: "desc" } },
-      take: 5,
+      take: 8,
     }),
+    prisma.lessonProgress.groupBy({ by: ["learnerId"], where: { completedAt: { gte: since7 } } }),
+    prisma.lessonProgress.groupBy({ by: ["learnerId"], where: { completedAt: { gte: since30 } } }),
+    prisma.lessonProgress.count({ where: { completedAt: { gte: since7 } } }),
+    prisma.user.count({ where: { createdAt: { gte: since30 } } }),
+    prisma.tutorMessage.count({ where: { role: "USER", createdAt: { gte: since7 } } }),
+    prisma.certificate.count({ where: { issuedAt: { gte: since30 } } }),
   ]);
 
-  const completionRate =
-    totalEnrolments > 0 ? Math.round((completedEnrolments / totalEnrolments) * 100) : 0;
-  const quizPassRate =
-    allQuizAttempts.length > 0
-      ? Math.round(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md
-          (allQuizAttempts.filter((a: any) => a.passed).length / allQuizAttempts.length) * 100,
-        )
-      : null;
+  // Per-course funnel for the most popular courses: enrolled -> started ->
+  // finished, to spot where learners stall.
+  const topIds = topCourses.map((c) => c.id);
+  const [startedByCourse, finishedByCourse] = await Promise.all([
+    prisma.enrolment.groupBy({
+      by: ["courseId"],
+      where: { courseId: { in: topIds }, progressPercent: { gt: 0 } },
+      _count: { _all: true },
+    }),
+    prisma.enrolment.groupBy({
+      by: ["courseId"],
+      where: { courseId: { in: topIds }, progressPercent: 100 },
+      _count: { _all: true },
+    }),
+  ]);
+  const started = new Map(startedByCourse.map((r) => [r.courseId, r._count._all]));
+  const finished = new Map(finishedByCourse.map((r) => [r.courseId, r._count._all]));
+  const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+  const completionRate = percent(completedEnrolments, totalEnrolments);
+  const startRate = percent(startedEnrolments, totalEnrolments);
+  const quizPassRate = submittedAttempts > 0 ? percent(passedAttempts, submittedAttempts) : null;
 
   return (
     <>
@@ -85,43 +132,77 @@ export default async function AdminDashboardPage() {
           <StatCard label="Open opportunities" value={openOpportunities} href="/opportunities" />
         </div>
 
-        <section className="mt-10 border-t border-ink-100 pt-6">
-          <h2 className="font-display text-lg font-semibold text-ink-900">
+        <section className="mt-10 border-t border-ink-100 pt-6" aria-labelledby="activity-heading">
+          <h2 id="activity-heading" className="font-display text-lg font-semibold text-ink-900">
+            Learning activity
+          </h2>
+          <p className="mt-1 text-sm text-ink-500">
+            Totals only, counted from course progress. Page traffic is in Vercel Web Analytics.
+          </p>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <Metric value={learnersActive7.length} label="Learners active, last 7 days" />
+            <Metric value={learnersActive30.length} label="Learners active, last 30 days" />
+            <Metric value={lessonsDone7} label="Lessons completed, last 7 days" />
+            <Metric value={newSignups30} label="New sign-ups, last 30 days" />
+            <Metric value={tutorQuestions7} label="Study buddy questions, last 7 days" />
+            <Metric value={certificates30} label="Certificates issued, last 30 days" />
+          </div>
+        </section>
+
+        <section className="mt-10 border-t border-ink-100 pt-6" aria-labelledby="performance-heading">
+          <h2 id="performance-heading" className="font-display text-lg font-semibold text-ink-900">
             Learning performance
           </h2>
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">{totalEnrolments}</p>
-              <p className="text-xs text-ink-500">Total enrolments</p>
-            </Card>
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">{completionRate}%</p>
-              <p className="text-xs text-ink-500">Overall completion rate</p>
-            </Card>
-            <Card className="flex flex-col gap-1">
-              <p className="font-display text-xl font-bold text-ink-900">
-                {quizPassRate === null ? "—" : `${quizPassRate}%`}
-              </p>
-              <p className="text-xs text-ink-500">Overall quiz pass rate</p>
-            </Card>
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Metric value={totalEnrolments} label="Total enrolments" />
+            <Metric value={`${startRate}%`} label="Started at least one lesson" />
+            <Metric value={`${completionRate}%`} label="Finished the course" />
+            <Metric value={quizPassRate === null ? "—" : `${quizPassRate}%`} label="Quiz attempts passed" />
           </div>
         </section>
 
         {topCourses.length > 0 && (
-          <section className="mt-10 border-t border-ink-100 pt-6">
-            <h2 className="font-display text-lg font-semibold text-ink-900">
+          <section className="mt-10 border-t border-ink-100 pt-6" aria-labelledby="courses-heading">
+            <h2 id="courses-heading" className="font-display text-lg font-semibold text-ink-900">
               Most popular courses
             </h2>
-            <div className="mt-4 flex flex-col gap-2">
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma stub in build sandbox, see ARCHITECTURE.md */}
-              {topCourses.map((course: any) => (
-                <Link key={course.id} href={`/instructor/courses/${course.id}`}>
-                  <Card className="flex items-center justify-between">
-                    <p className="font-medium text-ink-900">{course.title}</p>
-                    <p className="text-sm text-ink-500">{course._count.enrolments} enrolled</p>
-                  </Card>
-                </Link>
-              ))}
+            <p className="mt-1 text-sm text-ink-500">
+              A big gap between enrolled and started usually means the first lesson needs work.
+            </p>
+            <div className="mt-4 overflow-x-auto rounded-xl border border-ink-100 bg-white">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead className="bg-ink-50 text-xs text-ink-500">
+                  <tr>
+                    <th scope="col" className="px-4 py-2 font-medium">Course</th>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">Enrolled</th>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">Started</th>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">Finished</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {topCourses.map((course) => {
+                    const enrolled = course._count.enrolments;
+                    const s = started.get(course.id) ?? 0;
+                    const f = finished.get(course.id) ?? 0;
+                    return (
+                      <tr key={course.id} className="border-t border-ink-100">
+                        <td className="px-4 py-2.5">
+                          <Link href={`/instructor/courses/${course.id}`} className="font-medium text-ink-900 hover:text-brand-600">
+                            {course.title}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">{enrolled}</td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {s} <span className="text-ink-500">({percent(s, enrolled)}%)</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right tabular-nums">
+                          {f} <span className="text-ink-500">({percent(f, enrolled)}%)</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </section>
         )}

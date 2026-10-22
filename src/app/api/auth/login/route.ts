@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, createSession } from "@/lib/auth";
+import { verifyPassword, createSession, burnPasswordCheck } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
-import { rateLimitOrNull } from "@/lib/rate-limit";
+import { rateLimit, rateLimitOrNull, tooManyRequests } from "@/lib/rate-limit";
+import { rejectBots } from "@/lib/bot-check";
 
 export async function POST(request: Request) {
   // 10 attempts per 5 minutes per IP — generous enough for a genuine user
   // who mistypes a password a few times, tight enough to blunt casual
   // credential-stuffing. See SECURITY.md for the full rationale and the
   // documented multi-instance limitation.
-  const limited = rateLimitOrNull(request, "login", { limit: 10, windowSeconds: 300 });
+  const limited = await rateLimitOrNull(request, "login", { limit: 10, windowSeconds: 300 });
   if (limited) return limited;
+  const bot = await rejectBots();
+  if (bot) return bot;
 
   const body = await request.json().catch(() => null);
   const parsed = loginSchema.safeParse(body);
@@ -24,6 +27,11 @@ export async function POST(request: Request) {
 
   const { email, password } = parsed.data;
 
+  // Per account as well as per IP, so guessing one person's password from
+  // many addresses is still slow.
+  const accountLimit = await rateLimit(`login-account:${email}`, { limit: 20, windowSeconds: 900 });
+  if (!accountLimit.allowed) return tooManyRequests(accountLimit);
+
   const user = await prisma.user.findUnique({ where: { email } });
 
   // Same generic message whether the email doesn't exist or the password is
@@ -31,7 +39,12 @@ export async function POST(request: Request) {
   const invalidCredentials = () =>
     NextResponse.json({ error: "Incorrect email or password." }, { status: 401 });
 
-  if (!user) return invalidCredentials();
+  if (!user) {
+    // Take as long as a real password check, so timing doesn't reveal
+    // whether the email has an account.
+    await burnPasswordCheck(password);
+    return invalidCredentials();
+  }
 
   const validPassword = await verifyPassword(password, user.passwordHash);
   if (!validPassword) return invalidCredentials();
@@ -43,7 +56,7 @@ export async function POST(request: Request) {
     );
   }
 
-  await createSession({ userId: user.id, role: user.role });
+  await createSession({ userId: user.id, role: user.role, sessionVersion: user.sessionVersion });
 
   return NextResponse.json({ id: user.id, fullName: user.fullName, role: user.role });
 }
