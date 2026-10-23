@@ -11,14 +11,18 @@ interface ExistingProject {
   instructions: string;
   rubric: string;
   weight: number;
+  autoGrade: boolean;
 }
 
 export function ProjectBuilder({
   courseId,
   existingProject,
+  autoGradeAvailable,
 }: {
   courseId: string;
   existingProject: ExistingProject | null;
+  // False when the server has no ANTHROPIC_API_KEY.
+  autoGradeAvailable: boolean;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(existingProject?.title ?? "");
@@ -26,6 +30,7 @@ export function ProjectBuilder({
   const [rubric, setRubric] = useState(existingProject?.rubric ?? "");
   const [skillName, setSkillName] = useState("");
   const [weight, setWeight] = useState(existingProject?.weight ?? 2);
+  const [autoGrade, setAutoGrade] = useState(existingProject?.autoGrade ?? true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -44,6 +49,7 @@ export function ProjectBuilder({
           rubric,
           skillName: skillName || undefined,
           weight,
+          autoGrade,
         }),
       });
       const data = await res.json();
@@ -108,6 +114,31 @@ export function ProjectBuilder({
           value={weight}
           onChange={(e) => setWeight(Number(e.target.value))}
         />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex min-h-11 items-start gap-3 text-sm font-medium text-ink-700">
+          <input
+            type="checkbox"
+            className="mt-0.5 size-5 shrink-0 accent-brand-600"
+            checked={autoGrade}
+            onChange={(e) => setAutoGrade(e.target.checked)}
+          />
+          <span>
+            Grade submissions automatically against the rubric
+            <span className="mt-0.5 block font-normal text-ink-500">
+              Each uploaded spreadsheet is checked criterion by criterion as soon as it arrives, and the learner gets
+              their grade and feedback within a minute or two. Write the rubric as a list of checks, and mark which
+              ones are needed to pass. You can change any automatic grade below.
+            </span>
+          </span>
+        </label>
+        {autoGrade && !autoGradeAvailable && (
+          <p className="text-sm text-highlight-700">
+            Automatic grading isn&apos;t set up on this site yet (it needs an ANTHROPIC_API_KEY), so submissions will wait
+            for you to grade them.
+          </p>
+        )}
       </div>
 
       <Button type="button" className="w-fit" onClick={handleSave} disabled={saving}>

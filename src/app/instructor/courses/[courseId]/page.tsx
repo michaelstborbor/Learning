@@ -13,6 +13,7 @@ import { QuizzesManager } from "@/components/courses/QuizzesManager";
 import { MediaManager } from "@/components/courses/MediaManager";
 import { ProjectBuilder } from "@/components/courses/ProjectBuilder";
 import { SubmissionsGrader } from "@/components/courses/SubmissionsGrader";
+import { autoGradeAvailable, autoGradeCriteria, autoGradeStuck } from "@/lib/auto-grade";
 import { PublishToggle } from "@/components/courses/PublishToggle";
 import { SubmitReviewButton } from "@/components/courses/SubmitReviewButton";
 import { coursePosterUrl } from "@/lib/course-poster";
@@ -107,13 +108,23 @@ export default async function ManageCoursePage({
   const isOwner = session.userId === course.instructorId;
   const quizIds = course.quizzes.map((q) => q.id);
 
-  const pendingSubmissions = course.project
-    ? await prisma.projectSubmission.findMany({
-        where: { projectId: course.project.id, status: "PENDING" },
-        include: { learner: { select: { fullName: true } } },
-        orderBy: { submittedAt: "asc" },
-      })
-    : [];
+  // Waiting for a grade, plus the most recent automatic grades so an
+  // instructor can check them and change any they disagree with.
+  const [pendingSubmissions, autoGraded] = course.project
+    ? await Promise.all([
+        prisma.projectSubmission.findMany({
+          where: { projectId: course.project.id, status: "PENDING" },
+          include: { learner: { select: { fullName: true } } },
+          orderBy: { submittedAt: "asc" },
+        }),
+        prisma.projectSubmission.findMany({
+          where: { projectId: course.project.id, status: "GRADED", gradedAutomatically: true },
+          include: { learner: { select: { fullName: true } } },
+          orderBy: { gradedAt: "desc" },
+          take: 30,
+        }),
+      ])
+    : [[], []];
 
   // Course-level analytics — live queries against the same tables the
   // learner-facing pages use, not a separate tracking system.
@@ -356,26 +367,36 @@ export default async function ManageCoursePage({
                       instructions: course.project.instructions,
                       rubric: course.project.rubric,
                       weight: course.project.weight,
+                      autoGrade: course.project.autoGrade,
                     }
                   : null
               }
+              autoGradeAvailable={autoGradeAvailable()}
             />
           </Section>
 
           <Section
             id="grading"
             title="Submissions to grade"
-            description="Course grades combine each learner's best quiz scores and their project score, using the weights you set."
+            description="Submissions are marked against the rubric automatically when they arrive; check those grades here and change any you disagree with. Course grades combine each learner's best quiz scores and their project score, using the weights you set."
           >
             {course.project ? (
               <SubmissionsGrader
-                submissions={pendingSubmissions.map((s) => ({
+                canRetryAutoGrade={course.project.autoGrade && autoGradeAvailable()}
+                submissions={[...pendingSubmissions, ...autoGraded].map((s) => ({
                   id: s.id,
                   learnerName: s.learner.fullName,
                   submissionUrl: s.submissionUrl,
                   fileName: s.fileName,
                   notes: s.notes,
                   submittedAt: s.submittedAt.toISOString(),
+                  status: s.status,
+                  score: s.score,
+                  feedback: s.feedback,
+                  autoGradeStatus: s.autoGradeStatus,
+                  autoGradeNote: s.autoGradeNote,
+                  autoGradeStuck: autoGradeStuck(s.autoGradeStatus, s.autoGradeStartedAt),
+                  criteria: autoGradeCriteria(s.autoGradeDetails),
                 }))}
               />
             ) : (

@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { z } from "zod";
 import { webUrlSchema } from "@/lib/validation";
 import { prisma } from "@/lib/db";
@@ -14,6 +14,10 @@ import {
   matchesSubmissionFile,
   submissionFileExtension,
 } from "@/lib/submission-files";
+import { autoGradeAvailable, autoGradeSubmission } from "@/lib/auto-grade";
+
+// Leaves time for the automatic grader, which runs after the response.
+export const maxDuration = 300;
 
 const submitSchema = z.object({
   submissionUrl: webUrlSchema.optional(),
@@ -105,6 +109,7 @@ export async function POST(
     stored = { fileKey, fileName: safeFileName(file.name), fileSize: bytes.length, fileType: SUBMISSION_FILE_TYPES[ext] };
   }
 
+  const autoGrade = project.autoGrade && autoGradeAvailable() && stored !== null;
   const submission = await prisma.projectSubmission
     .create({
       data: {
@@ -114,6 +119,7 @@ export async function POST(
         ...stored,
         notes: parsed.data.notes,
         status: "PENDING",
+        ...(autoGrade && { autoGradeStatus: "RUNNING", autoGradeStartedAt: new Date() }),
       },
     })
     .catch(async (error) => {
@@ -122,9 +128,10 @@ export async function POST(
     });
 
   // Submitting is evidence of active work toward the skill — mark it
-  // In Progress. It only becomes Demonstrated once a human grader passes
-  // it (see /api/submissions/[submissionId]/grade). Completing a video or
-  // submitting once is never enough on its own — Rule 1/2.
+  // In Progress. It only becomes Demonstrated once the submission passes,
+  // graded against the rubric by the automatic grader or an instructor
+  // (see src/lib/project-grading.ts). Completing a video or submitting
+  // once is never enough on its own — Rule 1/2.
   if (project.skillId) {
     await prisma.learnerSkill.upsert({
       where: { learnerId_skillId: { learnerId: session.userId, skillId: project.skillId } },
@@ -140,6 +147,10 @@ export async function POST(
       },
     });
   }
+
+  // Grade against the rubric once the learner has their response; the
+  // panel shows "being marked" until the result is saved.
+  if (project.autoGrade) after(() => autoGradeSubmission(submission.id));
 
   return NextResponse.json(submission, { status: 201 });
 }

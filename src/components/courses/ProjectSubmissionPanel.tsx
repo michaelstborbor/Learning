@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Field } from "@/components/ui/Field";
 import { Button } from "@/components/ui/Button";
@@ -23,7 +23,15 @@ interface Submission {
   score: number | null;
   feedback: string | null;
   submittedAt: string;
+  // The system is checking it against the rubric right now.
+  beingMarked: boolean;
+  gradedAutomatically: boolean;
 }
+
+// While a submission is being marked automatically, look again every so
+// often so the grade appears without a reload. Stops after a few minutes.
+const MARKING_POLL_MS = 8000;
+const MARKING_POLL_LIMIT = 40;
 
 export function ProjectSubmissionPanel({
   projectId,
@@ -41,6 +49,18 @@ export function ProjectSubmissionPanel({
   const [submitting, setSubmitting] = useState(false);
 
   const hasPassed = submissions.some((s) => s.status === "GRADED" && (s.score ?? 0) >= 70);
+  const beingMarked = submissions.some((s) => s.beingMarked);
+
+  useEffect(() => {
+    if (!beingMarked) return;
+    let polls = 0;
+    const timer = setInterval(() => {
+      polls += 1;
+      if (polls > MARKING_POLL_LIMIT) clearInterval(timer);
+      else router.refresh();
+    }, MARKING_POLL_MS);
+    return () => clearInterval(timer);
+  }, [beingMarked, router]);
 
   function chooseFile(chosen: File | undefined) {
     if (fileInput.current) fileInput.current.value = "";
@@ -117,7 +137,9 @@ export function ProjectSubmissionPanel({
                       </a>
                     )}
                   </div>
-                  {s.status === "PENDING" ? (
+                  {s.beingMarked ? (
+                    <Badge tone="brand">Being marked…</Badge>
+                  ) : s.status === "PENDING" ? (
                     <Badge tone="brand">Awaiting grading</Badge>
                   ) : (s.score ?? 0) >= 70 ? (
                     <Badge tone="verified">Passed — {s.score}%</Badge>
@@ -125,8 +147,19 @@ export function ProjectSubmissionPanel({
                     <Badge tone="danger">Not yet — {s.score}%</Badge>
                   )}
                 </div>
+                {s.beingMarked && (
+                  <p className="mt-2 text-ink-500" role="status">
+                    Your work is being checked against the rubric. Your grade and feedback usually appear here within a
+                    minute or two.
+                  </p>
+                )}
                 {s.feedback && (
-                  <p className="mt-2 text-ink-500">Feedback: {s.feedback}</p>
+                  <p className="mt-2 whitespace-pre-line break-words text-ink-500">Feedback: {s.feedback}</p>
+                )}
+                {s.status === "GRADED" && s.gradedAutomatically && (
+                  <p className="mt-2 text-xs text-ink-500">
+                    Marked automatically against the rubric. Your instructor can review it and change the grade.
+                  </p>
                 )}
               </li>
             ))}
