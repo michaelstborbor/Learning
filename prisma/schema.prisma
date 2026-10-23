@@ -336,6 +336,10 @@ model Project {
   skill        Skill?  @relation(fields: [skillId], references: [id])
   // Relative weight of the project in the course grade (see src/lib/gradebook.ts).
   weight       Int     @default(2)
+  // When on, each uploaded spreadsheet is graded against the rubric by the
+  // system as soon as it arrives (see src/lib/auto-grade.ts). An
+  // instructor can always change the grade.
+  autoGrade    Boolean @default(true)
 
   submissions ProjectSubmission[]
 
@@ -363,6 +367,17 @@ model ProjectSubmission {
   gradedById    String?
   gradedBy      User?            @relation("GraderSubmissions", fields: [gradedById], references: [id])
   gradedAt      DateTime?
+  // Automatic grading (src/lib/auto-grade.ts). autoGradeStatus is RUNNING
+  // while the system marks the work, GRADED when it did, SKIPPED when the
+  // work can't be read automatically (an old .xls file, a link only) and
+  // FAILED on an error; the last two leave it for an instructor, and
+  // autoGradeNote says why. gradedAutomatically stays true until a person
+  // changes the grade.
+  autoGradeStatus     String?
+  autoGradeStartedAt  DateTime?
+  autoGradeNote       String?
+  autoGradeDetails    Json?
+  gradedAutomatically Boolean   @default(false)
   submittedAt   DateTime         @default(now())
 
   @@map("project_submissions")

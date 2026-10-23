@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { MediaUploadPanel, type MediaTarget } from "./MediaManager";
+import { InlinePlayer } from "./InlinePlayer";
 
 export interface AttachedMediaItem {
   id: string;
@@ -32,23 +33,39 @@ export function AttachMedia({
   media: AttachedMediaItem[];
 }) {
   const [open, setOpen] = useState(false);
+  const [playing, setPlaying] = useState<string | null>(null);
+  const playingItem = media.find((item) => item.id === playing && item.kind !== "DOCUMENT");
   const idPrefix = `attach-${target.lessonId ?? target.moduleId ?? "course"}`;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        {media.map((item) => (
-          <a
-            key={item.id}
-            href={`/api/media/${item.id}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex min-h-8 max-w-full items-center gap-1 text-xs text-brand-700 hover:underline"
-          >
-            <Icon name={KIND_ICON[item.kind]} size={14} className="shrink-0" />
-            <span className="truncate">{item.title}</span>
-          </a>
-        ))}
+        {media.map((item) =>
+          item.kind === "DOCUMENT" ? (
+            <a
+              key={item.id}
+              href={`/api/media/${item.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-8 max-w-full items-center gap-1 text-xs text-brand-700 hover:underline"
+            >
+              <Icon name={KIND_ICON[item.kind]} size={14} className="shrink-0" />
+              <span className="truncate">{item.title}</span>
+            </a>
+          ) : (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setPlaying(playing === item.id ? null : item.id)}
+              aria-expanded={playing === item.id}
+              className="inline-flex min-h-8 max-w-full cursor-pointer items-center gap-1 text-xs text-brand-700 hover:underline"
+            >
+              <Icon name={playing === item.id ? "x" : KIND_ICON[item.kind]} size={14} className="shrink-0" />
+              <span className="truncate">{item.title}</span>
+              <span className="sr-only">{playing === item.id ? ", stop playing" : ", play here"}</span>
+            </button>
+          ),
+        )}
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
@@ -61,6 +78,9 @@ export function AttachMedia({
           <span className="sr-only"> to {name}</span>
         </button>
       </div>
+      {playingItem && playingItem.kind !== "DOCUMENT" && (
+        <InlinePlayer id={playingItem.id} kind={playingItem.kind} title={playingItem.title} autoPlay className="max-w-xl" />
+      )}
       {open && (
         <div id={`${idPrefix}-panel`} className="rounded-xl border border-ink-100 bg-ink-50/60 p-3">
           <MediaUploadPanel courseId={courseId} kinds={["VIDEO", "AUDIO"]} target={target} idPrefix={idPrefix} compact />

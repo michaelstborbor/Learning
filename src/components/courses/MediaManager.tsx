@@ -8,6 +8,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Icon, type IconName } from "@/components/ui/Icon";
 import { TRANSCRIPT_LANGUAGES, isTranscriptLanguage, type TranscriptLanguage } from "@/lib/transcript";
 import { TranscriptEditor, TranscriptFields } from "./TranscriptFields";
+import { InlinePlayer } from "./InlinePlayer";
 
 type Kind = "VIDEO" | "AUDIO" | "DOCUMENT";
 
@@ -47,14 +48,14 @@ const KINDS: { kind: Kind; label: string; icon: IconName; accept: string; hint: 
     label: "Add video",
     icon: "video",
     accept: "video/*",
-    hint: "Compressed to 720p MP4 on your device",
+    hint: "Made into a sharp 720p MP4 that plays in any browser",
   },
   {
     kind: "AUDIO",
     label: "Add audio",
     icon: "audio",
     accept: "audio/*",
-    hint: "Compressed to a small M4A for slow connections",
+    hint: "Made into a clear M4A that plays in any browser",
   },
   {
     kind: "DOCUMENT",
@@ -479,6 +480,7 @@ export function MediaManager({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [editingTranscript, setEditingTranscript] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
 
   async function remove(id: string) {
     setDeleting(id);
@@ -516,14 +518,27 @@ export function MediaManager({
                     <Icon name={icon} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <a
-                      href={`/api/media/${item.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block truncate font-medium text-ink-900 hover:text-brand-600 hover:underline"
-                    >
-                      {item.title}
-                    </a>
+                    {item.kind === "DOCUMENT" ? (
+                      <a
+                        href={`/api/media/${item.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate font-medium text-ink-900 hover:text-brand-600 hover:underline"
+                      >
+                        {item.title}
+                      </a>
+                    ) : (
+                      // Video and audio play right here, not in a new tab.
+                      <button
+                        type="button"
+                        onClick={() => setPlaying(playing === item.id ? null : item.id)}
+                        aria-expanded={playing === item.id}
+                        className="block max-w-full cursor-pointer truncate text-left font-medium text-ink-900 hover:text-brand-600 hover:underline"
+                      >
+                        {item.title}
+                        <span className="sr-only">{playing === item.id ? ", stop playing" : ", play here"}</span>
+                      </button>
+                    )}
                     <p className="truncate text-xs text-ink-500">
                       {placementLabel(item)}
                       {" · "}
@@ -573,6 +588,9 @@ export function MediaManager({
                     </button>
                   )}
                 </div>
+                {playing === item.id && item.kind !== "DOCUMENT" && (
+                  <InlinePlayer id={item.id} kind={item.kind} title={item.title} autoPlay className="max-w-xl" />
+                )}
                 {editingTranscript === item.id && (
                   <TranscriptEditor
                     mediaId={item.id}

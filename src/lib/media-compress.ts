@@ -3,9 +3,13 @@
 // connections download far less. Loaded with a dynamic import from the
 // upload panel only, so no other page pays for it.
 //
-//  - Video: re-encoded to at most 720p at medium quality (H.264 + AAC in
-//    MP4 where the browser can encode it, otherwise VP9/VP8 + Opus in WebM).
-//  - Audio: re-encoded to AAC (M4A) or Opus (WebM) at speech-friendly quality.
+//  - Video: H.264 + AAC in MP4, which every browser plays inline, at most
+//    720p and 30 fps, at a bitrate chosen for the output size (see
+//    src/lib/media-quality.ts). VP9 + Opus in WebM only where a browser
+//    can't encode H.264. A file that is already a web-ready MP4 of a
+//    sensible size is kept exactly as it is, so it loses nothing.
+//  - Audio: AAC (M4A) at 96 kbps, or Opus (WebM) where AAC can't be
+//    encoded. Light MP3 and M4A files are kept as they are.
 //  - Documents: gzipped when that actually helps (plain text, CSV, Markdown,
 //    RTF, old Office formats); already-compressed formats (PDF, DOCX, ZIP...)
 //    are sent as they are.
@@ -29,8 +33,6 @@ export interface CompressedFile {
 
 type Progress = (fraction: number) => void;
 
-const MAX_VIDEO_HEIGHT = 720;
-
 function renameExtension(name: string, extension: string): string {
   const base = name.includes(".") ? name.slice(0, name.lastIndexOf(".")) : name;
   return `${base}.${extension}`;
@@ -41,34 +43,67 @@ async function transcode(file: File, kind: "VIDEO" | "AUDIO", onProgress: Progre
     throw new CompressionUnsupportedError("This browser can't compress media.");
   }
   const mb = await import("mediabunny");
+  const quality = await import("@/lib/media-quality");
 
   const input = new mb.Input({ source: new mb.BlobSource(file), formats: mb.ALL_FORMATS });
   let duration: number | null = null;
+  let containerType: string;
   try {
     duration = await input.computeDuration();
+    containerType = (await input.getFormat()).mimeType;
   } catch {
     throw new CompressionUnsupportedError("This file's format can't be read in the browser.");
   }
+  if (kind === "AUDIO" && containerType === "video/mp4") containerType = "audio/mp4";
+
+  const videoTrack = kind === "VIDEO" ? await input.getPrimaryVideoTrack() : null;
+  if (kind === "VIDEO" && !videoTrack) throw new CompressionUnsupportedError("No video track found in this file.");
+  const audioTrack = await input.getPrimaryAudioTrack();
+  const videoStats = videoTrack ? await videoTrack.computePacketStats(300).catch(() => null) : null;
+
+  const original: CompressedFile = {
+    blob: file,
+    mimeType: containerType,
+    fileName: file.name,
+    contentEncoding: null,
+    durationSeconds: duration,
+    originalSize: file.size,
+    compressed: false,
+  };
+  const keep = quality.canKeepOriginal(kind, {
+    mimeType: containerType,
+    videoCodec: videoTrack?.codec ?? null,
+    audioCodec: audioTrack?.codec ?? null,
+    height: videoTrack?.displayHeight ?? null,
+    frameRate: videoStats?.averagePacketRate ?? null,
+    bitrate: duration ? (file.size * 8) / duration : null,
+  });
+  if (keep) {
+    onProgress(1);
+    return original;
+  }
 
   let height: number | undefined;
+  let width: number | undefined;
   let videoCodec: import("mediabunny").VideoCodec | null = null;
-  if (kind === "VIDEO") {
-    const track = await input.getPrimaryVideoTrack();
-    if (!track) throw new CompressionUnsupportedError("No video track found in this file.");
-    const targetHeight = Math.min(MAX_VIDEO_HEIGHT, track.displayHeight);
-    height = targetHeight - (targetHeight % 2);
-    videoCodec = await mb.getFirstEncodableVideoCodec(["avc", "vp9", "vp8"], {
-      height,
-      width: Math.round((track.displayWidth * height) / track.displayHeight / 2) * 2,
-      quality: mb.QUALITY_MEDIUM,
-    });
+  let videoQuality: import("mediabunny").Quality | undefined;
+  if (videoTrack) {
+    height = quality.targetVideoHeight(videoTrack.displayHeight);
+    width = Math.round((videoTrack.displayWidth * height) / videoTrack.displayHeight / 2) * 2;
+    videoCodec = await mb.getFirstEncodableVideoCodec(["avc", "vp9", "vp8"], { width, height });
     if (!videoCodec) throw new CompressionUnsupportedError("This browser can't encode video.");
+    const bitrate = quality.videoBitrate(
+      videoCodec as import("@/lib/media-quality").WebVideoCodec,
+      height,
+      videoStats?.averageBitrate ?? null,
+    );
+    videoQuality = new mb.Quality({ bitrate, bitrateMode: "variable" });
   }
 
   const useMp4 = kind === "VIDEO" ? videoCodec === "avc" : await mb.canEncodeAudio("aac");
-  const audioCodec = await mb.getFirstEncodableAudioCodec(useMp4 ? ["aac", "opus"] : ["opus", "vorbis"], {
-    quality: mb.QUALITY_MEDIUM,
-  });
+  const audioCodec = audioTrack
+    ? await mb.getFirstEncodableAudioCodec(useMp4 ? ["aac", "opus"] : ["opus", "vorbis"])
+    : null;
   if (kind === "AUDIO" && !audioCodec) {
     throw new CompressionUnsupportedError("This browser can't encode audio.");
   }
@@ -78,16 +113,28 @@ async function transcode(file: File, kind: "VIDEO" | "AUDIO", onProgress: Progre
     target: new mb.BufferTarget(),
   });
 
+  const sourceFrameRate = videoStats?.averagePacketRate;
   const conversion = await mb.Conversion.init({
     input,
     output,
     tracks: "primary",
-    video:
-      kind === "VIDEO"
-        ? { height, codec: videoCodec!, quality: mb.QUALITY_MEDIUM, forceTranscode: true }
-        : { discard: true },
+    video: videoTrack
+      ? {
+          height,
+          codec: videoCodec!,
+          quality: videoQuality,
+          keyFrameInterval: quality.KEY_FRAME_SECONDS,
+          // Only lower the frame rate; never invent frames.
+          ...(sourceFrameRate && sourceFrameRate > quality.MAX_FRAME_RATE + 1 && { frameRate: quality.MAX_FRAME_RATE }),
+          forceTranscode: true,
+        }
+      : { discard: true },
     audio: audioCodec
-      ? { codec: audioCodec, quality: kind === "AUDIO" ? mb.QUALITY_LOW : mb.QUALITY_MEDIUM, forceTranscode: true }
+      ? {
+          codec: audioCodec,
+          quality: new mb.Quality({ bitrate: quality.audioBitrate(audioCodec as "aac" | "opus" | "vorbis", kind === "VIDEO") }),
+          forceTranscode: true,
+        }
       : { discard: true },
   });
   if (!conversion.isValid) {
@@ -104,18 +151,8 @@ async function transcode(file: File, kind: "VIDEO" | "AUDIO", onProgress: Progre
   const blob = new Blob([buffer], { type: mimeType });
 
   // If the original is already smaller AND plays in browsers as it is, keep it.
-  const originalPlayable = ["video/mp4", "video/webm", "audio/mp4", "audio/mpeg", "audio/webm", "audio/ogg"].includes(file.type);
-  if (originalPlayable && file.size <= blob.size) {
-    return {
-      blob: file,
-      mimeType: file.type,
-      fileName: file.name,
-      contentEncoding: null,
-      durationSeconds: duration,
-      originalSize: file.size,
-      compressed: false,
-    };
-  }
+  const originalPlayable = ["video/mp4", "audio/mp4", "audio/mpeg"].includes(containerType);
+  if (originalPlayable && file.size <= blob.size) return original;
 
   return {
     blob,

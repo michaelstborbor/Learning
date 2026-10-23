@@ -3,6 +3,7 @@ import { Nav } from "@/components/ui/Nav";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { ProjectSubmissionPanel } from "@/components/courses/ProjectSubmissionPanel";
+import { autoGradeStuck } from "@/lib/auto-grade";
 
 export default async function ProjectPage({
   params,
@@ -60,6 +61,8 @@ export default async function ProjectPage({
               score: s.score,
               feedback: s.feedback,
               submittedAt: s.submittedAt.toISOString(),
+              beingMarked: s.status === "PENDING" && s.autoGradeStatus === "RUNNING" && !autoGradeStuck(s.autoGradeStatus, s.autoGradeStartedAt),
+              gradedAutomatically: s.gradedAutomatically,
             }))}
           />
         </div>
